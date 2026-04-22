@@ -35,12 +35,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val drafts = draftRepo.listDrafts()
         val categories = drafts.flatMap { it.categories }.distinct().sorted()
         _uiState.update {
+            val selectedDraft = drafts.firstOrNull { draft -> draft.id == it.selectedDraft.id }
+                ?: drafts.firstOrNull()
+                ?: it.selectedDraft
+            val words = wordCount(selectedDraft.body)
             it.copy(
                 drafts = drafts,
-                selectedDraft = drafts.firstOrNull() ?: it.selectedDraft,
+                selectedDraft = selectedDraft,
                 categoryHistory = categories,
-                markdownWordCount = wordCount(it.selectedDraft.body),
-                readingTimeMinutes = readingTime(wordCount(it.selectedDraft.body))
+                markdownWordCount = words,
+                readingTimeMinutes = readingTime(words)
             )
         }
     }

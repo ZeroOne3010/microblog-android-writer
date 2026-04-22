@@ -2,6 +2,7 @@ package com.example.microblogwriter.data
 
 import android.content.Context
 import com.example.microblogwriter.domain.Draft
+import com.example.microblogwriter.domain.DraftStatus
 import java.io.File
 import java.time.Instant
 
@@ -40,11 +41,16 @@ class MarkdownDraftRepository(private val context: Context) {
             title = map["title"] ?: "",
             categories = yaml.lines().filter { it.trimStart().startsWith("- ") }.map { it.substringAfter("- ").trim() },
             body = body,
+            status = map["status"]?.let { parseStatus(it) } ?: DraftStatus.DRAFT,
             created = map["created"]?.let { Instant.parse(it) } ?: Instant.now(),
             updated = map["updated"]?.let { Instant.parse(it) } ?: Instant.now(),
             postId = map["post_id"]?.takeUnless { it == "null" }
         )
     }
+
+    private fun parseStatus(raw: String): DraftStatus = runCatching {
+        DraftStatus.valueOf(raw.trim().uppercase())
+    }.getOrDefault(DraftStatus.DRAFT)
 
     private fun toMarkdown(draft: Draft): String = buildString {
         appendLine("---")

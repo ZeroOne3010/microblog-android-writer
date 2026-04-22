@@ -30,6 +30,7 @@ import com.example.microblogwriter.ui.screens.ComposeScreen
 import com.example.microblogwriter.ui.screens.DraftsScreen
 import com.example.microblogwriter.ui.screens.PublishedScreen
 import com.example.microblogwriter.ui.screens.SettingsScreen
+import com.example.microblogwriter.ui.theme.MicroblogWriterTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,33 +53,35 @@ fun MicroblogWriterApp(appViewModel: AppViewModel = viewModel()) {
         NavItem("settings", "Settings") { Icon(Icons.Filled.Settings, null) }
     )
 
-    Scaffold(
-        bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val destination = navBackStackEntry?.destination
-                items.forEach { item ->
-                    NavigationBarItem(
-                        selected = destination?.hierarchy?.any { it.route == item.route } == true,
-                        onClick = {
-                            navController.navigate(item.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = item.icon,
-                        label = { Text(item.label) }
-                    )
+    MicroblogWriterTheme(theme = uiState.settings.theme) {
+        Scaffold(
+            bottomBar = {
+                NavigationBar {
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val destination = navBackStackEntry?.destination
+                    items.forEach { item ->
+                        NavigationBarItem(
+                            selected = destination?.hierarchy?.any { it.route == item.route } == true,
+                            onClick = {
+                                navController.navigate(item.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = item.icon,
+                            label = { Text(item.label) }
+                        )
+                    }
                 }
             }
-        }
-    ) { padding ->
-        NavHost(navController = navController, startDestination = "compose", modifier = Modifier.padding(padding)) {
-            composable("drafts") { DraftsScreen(uiState, appViewModel) }
-            composable("compose") { ComposeScreen(uiState, appViewModel) }
-            composable("published") { PublishedScreen(uiState, appViewModel) }
-            composable("settings") { SettingsScreen(uiState, appViewModel) }
+        ) { padding ->
+            NavHost(navController = navController, startDestination = "compose", modifier = Modifier.padding(padding)) {
+                composable("drafts") { DraftsScreen(uiState, appViewModel) }
+                composable("compose") { ComposeScreen(uiState, appViewModel) }
+                composable("published") { PublishedScreen(uiState, appViewModel) }
+                composable("settings") { SettingsScreen(uiState, appViewModel) }
+            }
         }
     }
 }
