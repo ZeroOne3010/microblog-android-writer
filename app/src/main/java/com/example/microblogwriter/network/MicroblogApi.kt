@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import com.example.microblogwriter.domain.Draft
 import com.example.microblogwriter.domain.SettingsState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -18,58 +20,78 @@ import java.net.URLEncoder
 class MicroblogApi(private val context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun publishPost(draft: Draft, settings: SettingsState): Result<String> = runCatching {
-        require(settings.microblogAccessToken.isNotBlank()) { "Micro.blog access token is required" }
+    suspend fun publishPost(draft: Draft, settings: SettingsState): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            require(settings.microblogAccessToken.isNotBlank()) { "Micro.blog access token is required" }
 
-        val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub"
-        val form = buildList {
-            add("h" to "entry")
-            add("name" to draft.title.ifBlank { "Untitled" })
-            add("content" to draft.body)
-            draft.categories.forEach { add("category[]" to it) }
-            draft.postId?.let { add("mp-destination" to it) }
+            val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub"
+            val form = if (draft.postId.isNullOrBlank()) {
+                buildList {
+                    add("h" to "entry")
+                    add("name" to draft.title.ifBlank { "Untitled" })
+                    add("content" to draft.body)
+                    draft.categories.forEach { add("category[]" to it) }
+                }
+            } else {
+                buildList {
+                    add("action" to "update")
+                    add("url" to draft.postId.orEmpty())
+                    add("replace[name]" to draft.title.ifBlank { "Untitled" })
+                    add("replace[content]" to draft.body)
+                    draft.categories.forEach { add("replace[category][]" to it) }
+                }
+            }
+
+            val response = postFormUrlEncoded(endpoint, settings.microblogAccessToken, form)
+            response.location
+                ?: extractPostId(response.body)
+                ?: draft.postId
+                ?: throw IllegalStateException("Publish succeeded but post URL/ID was not returned")
         }
-
-        val response = postFormUrlEncoded(endpoint, settings.microblogAccessToken, form)
-        extractPostId(response) ?: throw IllegalStateException("Publish succeeded but post URL/ID was not returned")
     }
 
-    suspend fun uploadImage(localUri: String, alt: String, settings: SettingsState): Result<String> = runCatching {
-        require(settings.microblogAccessToken.isNotBlank()) { "Micro.blog access token is required" }
-        require(localUri.isNotBlank()) { "Image URI is required" }
+    suspend fun uploadImage(localUri: String, alt: String, settings: SettingsState): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            require(settings.microblogAccessToken.isNotBlank()) { "Micro.blog access token is required" }
+            require(localUri.isNotBlank()) { "Image URI is required" }
 
-        val mediaEndpoint = resolveMediaEndpoint(settings)
-        val uri = Uri.parse(localUri)
-        val (fileName, mimeType, bytes) = readImageBytes(uri)
+            val mediaEndpoint = resolveMediaEndpoint(settings)
+            val uri = Uri.parse(localUri)
+            val (fileName, mimeType, bytes) = readImageBytes(uri)
 
-        val response = postMultipart(
-            endpoint = mediaEndpoint,
-            token = settings.microblogAccessToken,
-            fileName = fileName,
-            mimeType = mimeType,
-            bytes = bytes,
-            alt = alt
-        )
-
-        extractMediaUrl(response) ?: throw IllegalStateException("Upload succeeded but file URL was not returned")
-    }
-
-    suspend fun fetchRecentPosts(settings: SettingsState): Result<List<Draft>> = runCatching {
-        require(settings.microblogAccessToken.isNotBlank()) { "Micro.blog access token is required" }
-        val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub?q=source&limit=20"
-        val body = getRequest(endpoint, settings.microblogAccessToken)
-        val root = json.parseToJsonElement(body).jsonObject
-        val items = root["items"]?.jsonArray ?: return@runCatching emptyList()
-
-        items.mapNotNull { item ->
-            val obj = item.jsonObject
-            val content = obj["content"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-            Draft(
-                title = obj["name"]?.jsonPrimitive?.contentOrNull ?: "",
-                body = content,
-                categories = obj["category"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList(),
-                postId = obj["url"]?.jsonPrimitive?.contentOrNull
+            val response = postMultipart(
+                endpoint = mediaEndpoint,
+                token = settings.microblogAccessToken,
+                fileName = fileName,
+                mimeType = mimeType,
+                bytes = bytes,
+                alt = alt
             )
+
+            response.location
+                ?: extractMediaUrl(response.body)
+                ?: throw IllegalStateException("Upload succeeded but file URL was not returned")
+        }
+    }
+
+    suspend fun fetchRecentPosts(settings: SettingsState): Result<List<Draft>> = withContext(Dispatchers.IO) {
+        runCatching {
+            require(settings.microblogAccessToken.isNotBlank()) { "Micro.blog access token is required" }
+            val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub?q=source&limit=20"
+            val body = getRequest(endpoint, settings.microblogAccessToken).body
+            val root = json.parseToJsonElement(body).jsonObject
+            val items = root["items"]?.jsonArray ?: return@runCatching emptyList()
+
+            items.mapNotNull { item ->
+                val obj = item.jsonObject
+                val content = obj["content"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                Draft(
+                    title = obj["name"]?.jsonPrimitive?.contentOrNull ?: "",
+                    body = content,
+                    categories = obj["category"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList(),
+                    postId = obj["url"]?.jsonPrimitive?.contentOrNull
+                )
+            }
         }
     }
 
@@ -78,7 +100,7 @@ class MicroblogApi(private val context: Context) {
             return settings.microblogMediaEndpoint
         }
         val configEndpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub?q=config"
-        val body = getRequest(configEndpoint, settings.microblogAccessToken)
+        val body = getRequest(configEndpoint, settings.microblogAccessToken).body
         val mediaEndpoint = json.parseToJsonElement(body)
             .jsonObject["media-endpoint"]
             ?.jsonPrimitive
@@ -108,7 +130,7 @@ class MicroblogApi(private val context: Context) {
         }
     }
 
-    private fun postFormUrlEncoded(endpoint: String, token: String, form: List<Pair<String, String>>): String {
+    private fun postFormUrlEncoded(endpoint: String, token: String, form: List<Pair<String, String>>): HttpResponse {
         val encoded = form.joinToString("&") { (key, value) ->
             "${URLEncoder.encode(key, "UTF-8")}=${URLEncoder.encode(value, "UTF-8")}"
         }
@@ -131,7 +153,7 @@ class MicroblogApi(private val context: Context) {
         mimeType: String,
         bytes: ByteArray,
         alt: String
-    ): String {
+    ): HttpResponse {
         val boundary = "----microblogwriter${System.currentTimeMillis()}"
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
@@ -158,7 +180,7 @@ class MicroblogApi(private val context: Context) {
         return readResponse(connection)
     }
 
-    private fun getRequest(endpoint: String, token: String): String {
+    private fun getRequest(endpoint: String, token: String): HttpResponse {
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             setRequestProperty("Authorization", "Bearer $token")
@@ -167,14 +189,15 @@ class MicroblogApi(private val context: Context) {
         return readResponse(connection)
     }
 
-    private fun readResponse(connection: HttpURLConnection): String {
+    private fun readResponse(connection: HttpURLConnection): HttpResponse {
         val code = connection.responseCode
         val stream = if (code in 200..299) connection.inputStream else connection.errorStream
         val response = stream?.bufferedReader()?.use { it.readText() } ?: ""
+        val location = connection.getHeaderField("Location")
         if (code !in 200..299) {
             throw IllegalStateException("HTTP $code: $response")
         }
-        return response
+        return HttpResponse(body = response, location = location)
     }
 
     private fun extractPostId(response: String): String? {
@@ -190,4 +213,9 @@ class MicroblogApi(private val context: Context) {
             ?: root["path"]?.jsonPrimitive?.contentOrNull
             ?: root["location"]?.jsonPrimitive?.contentOrNull
     }
+
+    private data class HttpResponse(
+        val body: String,
+        val location: String?
+    )
 }
