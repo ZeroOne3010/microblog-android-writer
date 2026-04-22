@@ -23,6 +23,9 @@ data class SettingsState(
     val aiApiKey: String = "",
     val aiModel: String = "gpt-4.1-mini",
     val aiPromptTemplate: String = "Here's my latest blog post titled {title}. Please review for any grammatical mistakes. Feel free to suggest changes for better flow, for example, but be careful not to change my own voice. {contents}",
+    val microblogApiBaseUrl: String = "https://micro.blog",
+    val microblogAccessToken: String = "",
+    val microblogMediaEndpoint: String = "",
     val theme: AppTheme = AppTheme.SYSTEM,
     val categoryReminderEnabled: Boolean = true
 )
