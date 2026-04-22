@@ -9,7 +9,7 @@ Writing-first Android client for Micro.blog users who want local Markdown drafti
 - Insert `<!--more-->` from a prominent action
 - Inline image Markdown insertion flow with alt text field
 - Explicit AI review step (user-provided API key + configurable prompt template)
-- Publish action scaffolded for Micro.blog API integration
+- Publish action wired to Micro.blog Micropub API (Bearer token)
 - Drafts list with search + delete
 - Settings for AI and theme behavior
 - Light/dark support via Material 3 DayNight theme
@@ -22,10 +22,15 @@ Writing-first Android client for Micro.blog users who want local Markdown drafti
 
 ## Authentication and API integration
 
-`MicroblogApi` and `AiReviewClient` are modular placeholders in this MVP scaffold. Replace them with production providers:
+`AiReviewClient` is still modular and replaceable. `MicroblogApi` now uses Micropub with Bearer auth:
 
-- `app/src/main/java/com/example/microblogwriter/network/MicroblogApi.kt`
 - `app/src/main/java/com/example/microblogwriter/ai/AiReviewClient.kt`
+
+To publish/upload, set these in **Settings**:
+
+- Micropub base URL (defaults to `https://micro.blog`)
+- Access token (Bearer)
+- Optional media endpoint override (if omitted, app calls `q=config` to discover it)
 
 ## GitHub Actions APK build
 

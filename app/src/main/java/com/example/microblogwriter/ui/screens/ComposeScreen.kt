@@ -83,7 +83,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel) {
             Button(onClick = vm::togglePreview) { Text(if (uiState.previewMode) "Edit" else "Preview") }
         }
 
-        Text("Inline image upload (MVP mock)")
+        Text("Inline image upload")
         OutlinedTextField(
             value = imageUrl.value,
             onValueChange = { imageUrl.value = it },
@@ -97,7 +97,10 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel) {
             label = { Text("Alt text") },
             modifier = Modifier.fillMaxWidth()
         )
-        Button(onClick = { vm.insertMarkdownImage(imageUrl.value, altText.value) }) { Text("Insert image markdown") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = { vm.insertMarkdownImage(imageUrl.value, altText.value) }) { Text("Insert image markdown") }
+            Button(onClick = { vm.uploadImageAndInsert(imageUrl.value, altText.value) }) { Text("Upload + Insert") }
+        }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             Button(onClick = vm::saveDraft) { Text("Save Draft") }

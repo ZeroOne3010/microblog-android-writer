@@ -48,6 +48,26 @@ fun SettingsScreen(uiState: AppUiState, vm: AppViewModel) {
             label = { Text("Prompt template ({title}, {contents})") }
         )
 
+        Text("Micro.blog")
+        OutlinedTextField(
+            value = settings.microblogApiBaseUrl,
+            onValueChange = { settings = settings.copy(microblogApiBaseUrl = it) },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Micropub base URL") }
+        )
+        OutlinedTextField(
+            value = settings.microblogAccessToken,
+            onValueChange = { settings = settings.copy(microblogAccessToken = it) },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Access token (Bearer)") }
+        )
+        OutlinedTextField(
+            value = settings.microblogMediaEndpoint,
+            onValueChange = { settings = settings.copy(microblogMediaEndpoint = it) },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Media endpoint (optional override)") }
+        )
+
         Text("Theme")
         RowSwitch("System default", settings.theme == AppTheme.SYSTEM) {
             settings = settings.copy(theme = if (it) AppTheme.SYSTEM else AppTheme.LIGHT)

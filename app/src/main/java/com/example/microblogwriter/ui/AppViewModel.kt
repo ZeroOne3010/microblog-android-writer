@@ -21,7 +21,7 @@ import kotlin.math.max
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val draftRepo = MarkdownDraftRepository(application)
     private val settingsRepo = SettingsRepository(application)
-    private val api = MicroblogApi()
+    private val api = MicroblogApi(application)
     private val ai = AiReviewClient()
 
     private val _uiState = MutableStateFlow(AppUiState(settings = settingsRepo.load()))
@@ -114,7 +114,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val draft = _uiState.value.selectedDraft
         saveDraft()
         viewModelScope.launch {
-            val result = api.publishPost(draft)
+            val result = api.publishPost(draft, _uiState.value.settings)
             _uiState.update {
                 result.fold(
                     onSuccess = { postId ->
@@ -128,6 +128,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             refreshDrafts()
+        }
+    }
+
+    fun uploadImageAndInsert(localUri: String, alt: String) {
+        viewModelScope.launch {
+            val result = api.uploadImage(localUri, alt, _uiState.value.settings)
+            _uiState.update {
+                result.fold(
+                    onSuccess = { url ->
+                        val draft = it.selectedDraft.copy(body = "${it.selectedDraft.body}\n![${alt.ifBlank { "image" }}]($url)")
+                        val words = wordCount(draft.body)
+                        it.copy(
+                            selectedDraft = draft,
+                            markdownWordCount = words,
+                            readingTimeMinutes = readingTime(words),
+                            statusMessage = "Image uploaded to Micro.blog"
+                        )
+                    },
+                    onFailure = { err ->
+                        it.copy(statusMessage = "Image upload failed: ${err.message}")
+                    }
+                )
+            }
         }
     }
 
