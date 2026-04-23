@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.microblogwriter.domain.AppTheme
 import com.example.microblogwriter.domain.AppUiState
-import com.example.microblogwriter.domain.SettingsState
 import com.example.microblogwriter.ui.AppViewModel
 
 @Composable
@@ -63,17 +62,16 @@ fun SettingsScreen(uiState: AppUiState, vm: AppViewModel) {
             label = { Text("Micropub base URL") }
         )
         OutlinedTextField(
-            value = settings.microblogAccessToken,
-            onValueChange = { settings = settings.copy(microblogAccessToken = it) },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Access token (Bearer)") }
-        )
-        OutlinedTextField(
             value = settings.microblogMediaEndpoint,
             onValueChange = { settings = settings.copy(microblogMediaEndpoint = it) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Media endpoint (optional override)") }
         )
+
+        Text(if (uiState.auth.isAuthenticated) "Auth: signed in as ${uiState.auth.me}" else "Auth: not signed in")
+        if (uiState.auth.isAuthenticated) {
+            Button(onClick = vm::logout) { Text("Logout") }
+        }
 
         Text("Theme")
         RowSwitch("System default", settings.theme == AppTheme.SYSTEM) {

@@ -54,7 +54,7 @@ import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ComposeScreen(uiState: AppUiState, vm: AppViewModel) {
+fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Unit) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
@@ -99,6 +99,10 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text("Writing-first compose")
+        if (!uiState.auth.isAuthenticated) {
+            Text("Sign in is required for publish/upload actions.")
+            Button(onClick = onRequireAuth) { Text("Go to sign in") }
+        }
         OutlinedTextField(
             value = uiState.selectedDraft.title,
             onValueChange = vm::editTitle,
@@ -292,7 +296,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel) {
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = vm::uploadQueuedImages, enabled = uiState.imageUploadQueue.isNotEmpty()) { Text("Upload queue") }
+            Button(onClick = vm::uploadQueuedImages, enabled = uiState.auth.isAuthenticated && uiState.imageUploadQueue.isNotEmpty()) { Text("Upload queue") }
             Button(onClick = vm::insertUploadedImagesMarkdown, enabled = uiState.imageUploadQueue.any { it.status == UploadStatus.SUCCEEDED }) {
                 Text("Insert uploaded markdown")
             }
@@ -301,7 +305,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             Button(onClick = vm::saveDraft) { Text("Save Draft") }
             Button(onClick = vm::runAiReview) { Text("AI Review") }
-            Button(onClick = vm::publishPost) { Text("Publish") }
+            Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated) { Text("Publish") }
         }
         Text("AI disclosure: When you tap AI Review, this draft content is sent to your configured provider.")
 
