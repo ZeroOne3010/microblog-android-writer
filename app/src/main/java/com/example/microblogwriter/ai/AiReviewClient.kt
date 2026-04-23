@@ -53,6 +53,7 @@ class AiReviewClient(
 
         val endpoint = buildEndpoint(providerBaseUrl)
         val body = json.encodeToString(
+            ChatRequest.serializer(),
             ChatRequest(
                 model = model,
                 messages = listOf(ChatMessage(role = "user", content = prompt))
