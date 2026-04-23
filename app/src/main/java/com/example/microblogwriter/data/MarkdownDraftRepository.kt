@@ -37,7 +37,8 @@ class MarkdownDraftRepository(private val context: Context) {
             id = duplicateId,
             title = duplicatedTitle,
             updated = Instant.now(),
-            status = DraftStatus.DRAFT
+            status = DraftStatus.DRAFT,
+            postId = null
         )
         File(draftsDir, "$duplicateId.md").writeText(toMarkdown(duplicated))
         return duplicated
