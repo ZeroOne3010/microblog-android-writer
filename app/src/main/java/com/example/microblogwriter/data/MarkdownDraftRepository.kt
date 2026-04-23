@@ -5,6 +5,7 @@ import com.example.microblogwriter.domain.Draft
 import com.example.microblogwriter.domain.DraftStatus
 import java.io.File
 import java.time.Instant
+import java.util.Locale
 
 class MarkdownDraftRepository(private val context: Context) {
     private val draftsDir: File by lazy { File(context.filesDir, "drafts").apply { mkdirs() } }
@@ -24,6 +25,44 @@ class MarkdownDraftRepository(private val context: Context) {
 
     fun deleteDraft(id: String) {
         File(draftsDir, "$id.md").delete()
+    }
+
+    fun duplicateDraft(id: String): Draft? {
+        val source = File(draftsDir, "$id.md")
+        if (!source.exists()) return null
+        val sourceDraft = parseDraft(source) ?: return null
+        val duplicatedTitle = sourceDraft.title.ifBlank { "Untitled draft" } + " (Copy)"
+        val duplicateId = createUniqueId(slugify(duplicatedTitle).ifBlank { "${sourceDraft.id}-copy" })
+        val duplicated = sourceDraft.copy(
+            id = duplicateId,
+            title = duplicatedTitle,
+            updated = Instant.now(),
+            status = DraftStatus.DRAFT,
+            postId = null
+        )
+        File(draftsDir, "$duplicateId.md").writeText(toMarkdown(duplicated))
+        return duplicated
+    }
+
+    fun renameDraft(id: String, newTitleOrSlug: String): Draft? {
+        val source = File(draftsDir, "$id.md")
+        if (!source.exists()) return null
+        val draft = parseDraft(source) ?: return null
+        val trimmed = newTitleOrSlug.trim()
+        if (trimmed.isBlank()) return null
+
+        val newId = createUniqueId(slugify(trimmed).ifBlank { id }, excludeId = id)
+        val renamed = draft.copy(
+            id = newId,
+            title = trimmed,
+            updated = Instant.now()
+        )
+        val destination = File(draftsDir, "$newId.md")
+        destination.writeText(toMarkdown(renamed))
+        if (destination.absolutePath != source.absolutePath) {
+            source.delete()
+        }
+        return renamed
     }
 
     private fun parseDraft(file: File): Draft? {
@@ -65,4 +104,21 @@ class MarkdownDraftRepository(private val context: Context) {
         appendLine()
         append(draft.body)
     }
+
+    private fun createUniqueId(base: String, excludeId: String? = null): String {
+        var candidate = base
+        var suffix = 2
+        while (true) {
+            if (candidate == excludeId || !File(draftsDir, "$candidate.md").exists()) {
+                return candidate
+            }
+            candidate = "$base-$suffix"
+            suffix++
+        }
+    }
+
+    private fun slugify(text: String): String = text
+        .lowercase(Locale.US)
+        .replace(Regex("[^a-z0-9]+"), "-")
+        .trim('-')
 }
