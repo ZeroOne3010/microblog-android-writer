@@ -42,6 +42,8 @@ data class AppUiState(
     val selectedDraft: Draft = Draft(),
     val categoryHistory: List<String> = emptyList(),
     val publishedPosts: List<Draft> = emptyList(),
+    val publishedPostsLoading: Boolean = false,
+    val publishedPostsError: String? = null,
     val aiReviewOutput: String = "",
     val previewMode: Boolean = false,
     val markdownWordCount: Int = 0,
