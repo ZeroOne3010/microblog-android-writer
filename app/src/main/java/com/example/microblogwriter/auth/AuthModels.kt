@@ -19,3 +19,9 @@ data class AuthConfig(
     val state: String,
     val me: String
 )
+
+data class PendingAuthSession(
+    val config: AuthConfig,
+    val authorizationEndpoint: String,
+    val tokenEndpoint: String
+)

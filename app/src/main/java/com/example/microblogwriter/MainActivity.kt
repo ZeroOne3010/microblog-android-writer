@@ -41,25 +41,50 @@ import com.example.microblogwriter.ui.theme.MicroblogWriterTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MicroblogWriterApp(intent?.data) }
+        setContent {
+            MicroblogWriterApp(
+                authRedirectUri = intent?.data,
+                onAuthRedirectConsumed = ::clearCallbackIntentData
+            )
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        setContent { MicroblogWriterApp(intent.data) }
+        setContent {
+            MicroblogWriterApp(
+                authRedirectUri = intent.data,
+                onAuthRedirectConsumed = ::clearCallbackIntentData
+            )
+        }
+    }
+
+    private fun clearCallbackIntentData() {
+        val currentIntent = intent ?: return
+        if (currentIntent.data != null) {
+            currentIntent.data = null
+            setIntent(currentIntent)
+        }
     }
 }
 
 data class NavItem(val route: String, val label: String, val icon: @Composable () -> Unit)
 
 @Composable
-fun MicroblogWriterApp(authRedirectUri: Uri? = null, appViewModel: AppViewModel = viewModel()) {
+fun MicroblogWriterApp(
+    authRedirectUri: Uri? = null,
+    onAuthRedirectConsumed: () -> Unit = {},
+    appViewModel: AppViewModel = viewModel()
+) {
     val navController = rememberNavController()
     val uiState by appViewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(authRedirectUri) {
-        authRedirectUri?.let { uri -> appViewModel.handleAuthRedirect(uri) }
+        authRedirectUri?.let { uri ->
+            appViewModel.handleAuthRedirect(uri)
+            onAuthRedirectConsumed()
+        }
     }
 
     val items = listOf(

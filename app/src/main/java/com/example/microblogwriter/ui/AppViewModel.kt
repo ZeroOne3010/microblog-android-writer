@@ -9,6 +9,7 @@ import com.example.microblogwriter.auth.AuthConfig
 import com.example.microblogwriter.auth.AuthRepository
 import com.example.microblogwriter.auth.AuthState
 import com.example.microblogwriter.auth.MicroblogAuthApi
+import com.example.microblogwriter.auth.PendingAuthSession
 import com.example.microblogwriter.data.MarkdownDraftRepository
 import com.example.microblogwriter.data.SettingsRepository
 import com.example.microblogwriter.domain.AppUiState
@@ -36,7 +37,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val authApi = MicroblogAuthApi()
     private val ai = AiReviewClient()
 
-    private var pendingAuthConfig: AuthConfig? = null
+    private var pendingAuthSession: PendingAuthSession? = authRepo.loadPendingAuth()
 
     private val _uiState = MutableStateFlow(AppUiState(settings = settingsRepo.load(), auth = authRepo.load()))
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
@@ -56,13 +57,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             state = UUID.randomUUID().toString(),
             me = normalizedMe
         )
-        pendingAuthConfig = config
+        pendingAuthSession = null
+        authRepo.clearPendingAuth()
         _uiState.update { it.copy(auth = it.auth.copy(authInProgress = true, authError = null)) }
 
         viewModelScope.launch {
             val discovered = authApi.discoverEndpoints(config.me)
             discovered.fold(
                 onSuccess = { endpoints ->
+                    val session = PendingAuthSession(
+                        config = config,
+                        authorizationEndpoint = endpoints.first,
+                        tokenEndpoint = endpoints.second
+                    )
+                    pendingAuthSession = session
+                    authRepo.savePendingAuth(session)
                     val url = authApi.buildAuthorizationUrl(config, endpoints.first)
                     _uiState.update {
                         it.copy(
@@ -87,12 +96,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (uri == null || uri.scheme != "microblogwriter" || uri.host != "auth") return
         val code = uri.getQueryParameter("code") ?: return
         val state = uri.getQueryParameter("state") ?: ""
-        val config = pendingAuthConfig
+        val session = pendingAuthSession ?: authRepo.loadPendingAuth()
+        val config = session?.config
         if (config == null || config.state != state) {
+            pendingAuthSession = null
+            authRepo.clearPendingAuth()
             _uiState.update { it.copy(auth = it.auth.copy(authError = "Invalid auth state returned", authInProgress = false)) }
             return
         }
-        val tokenEndpoint = _uiState.value.auth.tokenEndpoint
+        val tokenEndpoint = session?.tokenEndpoint.orEmpty().ifBlank { _uiState.value.auth.tokenEndpoint }
         if (tokenEndpoint.isBlank()) {
             _uiState.update { it.copy(auth = it.auth.copy(authError = "Missing token endpoint", authInProgress = false)) }
             return
@@ -111,7 +123,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             authError = null
                         )
                         authRepo.save(merged)
-                        pendingAuthConfig = null
+                        pendingAuthSession = null
+                        authRepo.clearPendingAuth()
                         stateNow.copy(auth = merged, statusMessage = "Authenticated with Micro.blog")
                     },
                     onFailure = { err ->
@@ -127,6 +140,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun logout() {
         authRepo.clear()
+        pendingAuthSession = null
         _uiState.update {
             it.copy(
                 auth = AuthState(),
