@@ -20,6 +20,7 @@ enum class AppTheme { SYSTEM, LIGHT, DARK }
 
 data class SettingsState(
     val aiEnabled: Boolean = true,
+    val aiProviderBaseUrl: String = "https://api.openai.com",
     val aiApiKey: String = "",
     val aiModel: String = "gpt-4.1-mini",
     val aiPromptTemplate: String = "Here's my latest blog post titled {title}. Please review for any grammatical mistakes. Feel free to suggest changes for better flow, for example, but be careful not to change my own voice. {contents}",

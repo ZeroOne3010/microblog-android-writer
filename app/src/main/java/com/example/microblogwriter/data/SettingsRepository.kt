@@ -17,6 +17,7 @@ class SettingsRepository(context: Context) {
 
     fun load(): SettingsState = SettingsState(
         aiEnabled = prefs.getBoolean("ai_enabled", true),
+        aiProviderBaseUrl = prefs.getString("ai_provider_base_url", SettingsState().aiProviderBaseUrl) ?: SettingsState().aiProviderBaseUrl,
         aiApiKey = prefs.getString("ai_api_key", "") ?: "",
         aiModel = prefs.getString("ai_model", "gpt-4.1-mini") ?: "gpt-4.1-mini",
         aiPromptTemplate = prefs.getString("ai_prompt", SettingsState().aiPromptTemplate) ?: SettingsState().aiPromptTemplate,
@@ -30,6 +31,7 @@ class SettingsRepository(context: Context) {
     fun save(settings: SettingsState) {
         prefs.edit()
             .putBoolean("ai_enabled", settings.aiEnabled)
+            .putString("ai_provider_base_url", settings.aiProviderBaseUrl)
             .putString("ai_api_key", settings.aiApiKey)
             .putString("ai_model", settings.aiModel)
             .putString("ai_prompt", settings.aiPromptTemplate)
