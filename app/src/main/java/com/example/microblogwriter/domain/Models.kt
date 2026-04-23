@@ -37,6 +37,18 @@ data class LinkDialogState(
     val initialUrl: String
 )
 
+enum class UploadStatus { QUEUED, UPLOADING, SUCCEEDED, FAILED }
+
+data class ImageUploadItem(
+    val id: String = UUID.randomUUID().toString(),
+    val localUri: String,
+    val altText: String = "",
+    val status: UploadStatus = UploadStatus.QUEUED,
+    val progressPercent: Int = 0,
+    val uploadedUrl: String? = null,
+    val errorMessage: String? = null
+)
+
 data class AppUiState(
     val drafts: List<Draft> = emptyList(),
     val selectedDraft: Draft = Draft(),
@@ -50,5 +62,6 @@ data class AppUiState(
     val readingTimeMinutes: Int = 0,
     val statusMessage: String? = null,
     val settings: SettingsState = SettingsState(),
-    val linkDialogState: LinkDialogState? = null
+    val linkDialogState: LinkDialogState? = null,
+    val imageUploadQueue: List<ImageUploadItem> = emptyList()
 )
