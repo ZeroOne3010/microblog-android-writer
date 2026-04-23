@@ -144,11 +144,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             .replace("{contents}", state.selectedDraft.body)
 
         viewModelScope.launch {
-            val result = ai.review(state.settings.aiApiKey, state.settings.aiModel, prompt)
-            _uiState.update {
-                it.copy(
-                    aiReviewOutput = result.getOrElse { err -> "AI review failed: ${err.message}" },
-                    statusMessage = "AI review complete"
+            val result = ai.review(
+                providerBaseUrl = state.settings.aiProviderBaseUrl,
+                apiKey = state.settings.aiApiKey,
+                model = state.settings.aiModel,
+                prompt = prompt
+            )
+            _uiState.update { current ->
+                result.fold(
+                    onSuccess = { output ->
+                        current.copy(
+                            aiReviewOutput = output,
+                            statusMessage = "AI review complete"
+                        )
+                    },
+                    onFailure = { err ->
+                        current.copy(
+                            aiReviewOutput = "",
+                            statusMessage = "AI review failed: ${mapAiError(err)}"
+                        )
+                    }
                 )
             }
         }
@@ -276,6 +291,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+
+    private fun mapAiError(err: Throwable): String = when (err) {
+        is com.example.microblogwriter.ai.AiReviewError.Network -> "Network error. Check your connection and provider URL."
+        is com.example.microblogwriter.ai.AiReviewError.Authentication -> err.message ?: "Authentication failed"
+        is com.example.microblogwriter.ai.AiReviewError.RateLimited -> err.message ?: "Rate limit reached"
+        is com.example.microblogwriter.ai.AiReviewError.MissingConfiguration -> err.message ?: "Missing AI configuration"
+        is com.example.microblogwriter.ai.AiReviewError.Provider -> err.message ?: "Provider request failed"
+        else -> err.message ?: "Unknown error"
+    }
     private fun linkedLocalDraft(postId: String?): Draft? {
         if (postId.isNullOrBlank()) return null
         return _uiState.value.drafts.firstOrNull { it.postId == postId }

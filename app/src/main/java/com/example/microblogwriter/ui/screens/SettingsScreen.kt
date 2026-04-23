@@ -29,6 +29,12 @@ fun SettingsScreen(uiState: AppUiState, vm: AppViewModel) {
         Text("AI settings")
         RowSwitch("Enable AI review", settings.aiEnabled) { settings = settings.copy(aiEnabled = it) }
         OutlinedTextField(
+            value = settings.aiProviderBaseUrl,
+            onValueChange = { settings = settings.copy(aiProviderBaseUrl = it) },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("AI provider base URL") }
+        )
+        OutlinedTextField(
             value = settings.aiApiKey,
             onValueChange = { settings = settings.copy(aiApiKey = it) },
             modifier = Modifier.fillMaxWidth(),
@@ -47,6 +53,7 @@ fun SettingsScreen(uiState: AppUiState, vm: AppViewModel) {
             minLines = 4,
             label = { Text("Prompt template ({title}, {contents})") }
         )
+        Text("Disclosure: Running AI review sends the current draft title/body to the configured AI provider.")
 
         Text("Micro.blog")
         OutlinedTextField(

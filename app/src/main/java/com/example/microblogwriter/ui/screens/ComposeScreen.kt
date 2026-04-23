@@ -210,9 +210,10 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel) {
             Button(onClick = vm::runAiReview) { Text("AI Review") }
             Button(onClick = vm::publishPost) { Text("Publish") }
         }
+        Text("AI disclosure: When you tap AI Review, this draft content is sent to your configured provider.")
 
         if (uiState.aiReviewOutput.isNotBlank()) {
-            Text("AI review (explicit step):")
+            Text("AI review (separate suggestions, never auto-applied):")
             OutlinedTextField(
                 value = uiState.aiReviewOutput,
                 onValueChange = {},
