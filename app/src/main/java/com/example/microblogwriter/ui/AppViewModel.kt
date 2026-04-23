@@ -10,6 +10,8 @@ import com.example.microblogwriter.domain.AppUiState
 import com.example.microblogwriter.domain.Draft
 import com.example.microblogwriter.domain.DraftStatus
 import com.example.microblogwriter.domain.SettingsState
+import com.example.microblogwriter.domain.LinkDialogState
+import com.example.microblogwriter.ui.editor.buildLinkInsertionRequest
 import com.example.microblogwriter.network.MicroblogApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,6 +61,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun togglePreview() {
         _uiState.update { it.copy(previewMode = !it.previewMode) }
+    }
+
+
+    fun requestLinkInsertion(body: String, selectionStart: Int, selectionEnd: Int, clipboardText: String?) {
+        val request = buildLinkInsertionRequest(body, selectionStart, selectionEnd, clipboardText)
+        _uiState.update {
+            it.copy(
+                linkDialogState = LinkDialogState(
+                    selectionStart = request.selectionStart,
+                    selectionEnd = request.selectionEnd,
+                    selectedText = request.selectedText,
+                    initialUrl = request.initialUrl
+                )
+            )
+        }
+    }
+
+    fun dismissLinkDialog() {
+        _uiState.update { it.copy(linkDialogState = null) }
     }
 
     fun insertMoreTag() {

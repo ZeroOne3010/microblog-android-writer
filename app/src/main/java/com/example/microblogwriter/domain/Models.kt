@@ -30,6 +30,13 @@ data class SettingsState(
     val categoryReminderEnabled: Boolean = true
 )
 
+data class LinkDialogState(
+    val selectionStart: Int,
+    val selectionEnd: Int,
+    val selectedText: String,
+    val initialUrl: String
+)
+
 data class AppUiState(
     val drafts: List<Draft> = emptyList(),
     val selectedDraft: Draft = Draft(),
@@ -40,5 +47,6 @@ data class AppUiState(
     val markdownWordCount: Int = 0,
     val readingTimeMinutes: Int = 0,
     val statusMessage: String? = null,
-    val settings: SettingsState = SettingsState()
+    val settings: SettingsState = SettingsState(),
+    val linkDialogState: LinkDialogState? = null
 )
