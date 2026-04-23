@@ -57,4 +57,13 @@ class MarkdownEditorHelpersTest {
         assertEquals(1, mutation.selectionStart)
         assertEquals(10, mutation.selectionEnd)
     }
+
+    @Test
+    fun `prefixSelectedLines handles caret at start when text begins with newline`() {
+        val mutation = prefixSelectedLines("\nhello", 0, 0, "# ")
+
+        assertEquals("# \nhello", mutation.text)
+        assertEquals(2, mutation.selectionStart)
+        assertEquals(2, mutation.selectionEnd)
+    }
 }

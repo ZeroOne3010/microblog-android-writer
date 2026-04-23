@@ -97,8 +97,13 @@ fun prefixSelectedLines(text: String, selectionStart: Int, selectionEnd: Int, pr
     val rangeStart = min(safeStart, safeEnd)
     val rangeEnd = max(safeStart, safeEnd)
 
-    val lineStart = text.lastIndexOf('\n', startIndex = max(rangeStart - 1, 0)).let { if (it == -1) 0 else it + 1 }
-    val lineEnd = text.indexOf('\n', startIndex = rangeEnd).let { if (it == -1) text.length else it }
+    val lineStart = if (rangeStart == 0) {
+        0
+    } else {
+        text.lastIndexOf('\n', startIndex = rangeStart - 1).let { if (it == -1) 0 else it + 1 }
+    }
+    val lineEndCandidate = text.indexOf('\n', startIndex = rangeEnd).let { if (it == -1) text.length else it }
+    val lineEnd = max(lineStart, lineEndCandidate)
     val block = text.substring(lineStart, lineEnd)
     val prefixed = block.lines().joinToString("\n") { "$prefix$it" }
     val newText = text.replaceRange(lineStart, lineEnd, prefixed)
