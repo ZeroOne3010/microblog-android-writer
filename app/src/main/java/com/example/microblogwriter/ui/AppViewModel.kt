@@ -81,6 +81,28 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         refreshDrafts()
     }
 
+    fun duplicateDraft(id: String) {
+        val duplicated = draftRepo.duplicateDraft(id)
+        refreshDrafts()
+        _uiState.update {
+            it.copy(
+                selectedDraft = duplicated ?: it.selectedDraft,
+                statusMessage = if (duplicated != null) "Draft duplicated" else "Could not duplicate draft"
+            )
+        }
+    }
+
+    fun renameDraft(id: String, newTitleOrSlug: String) {
+        val renamed = draftRepo.renameDraft(id, newTitleOrSlug)
+        refreshDrafts()
+        _uiState.update {
+            it.copy(
+                selectedDraft = renamed ?: it.selectedDraft,
+                statusMessage = if (renamed != null) "Draft renamed" else "Could not rename draft"
+            )
+        }
+    }
+
     fun selectDraft(id: String) {
         val selected = _uiState.value.drafts.find { it.id == id } ?: return
         _uiState.update {
