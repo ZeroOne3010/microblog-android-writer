@@ -50,7 +50,12 @@ class MicroblogApi(private val context: Context) {
         }
     }
 
-    suspend fun uploadImage(localUri: String, alt: String, settings: SettingsState): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun uploadImage(
+        localUri: String,
+        alt: String,
+        settings: SettingsState,
+        onProgress: (Int) -> Unit = {}
+    ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             require(settings.microblogAccessToken.isNotBlank()) { "Micro.blog access token is required" }
             require(localUri.isNotBlank()) { "Image URI is required" }
@@ -65,7 +70,8 @@ class MicroblogApi(private val context: Context) {
                 fileName = fileName,
                 mimeType = mimeType,
                 bytes = bytes,
-                alt = alt
+                alt = alt,
+                onProgress = onProgress
             )
 
             response.location
@@ -152,7 +158,8 @@ class MicroblogApi(private val context: Context) {
         fileName: String,
         mimeType: String,
         bytes: ByteArray,
-        alt: String
+        alt: String,
+        onProgress: (Int) -> Unit
     ): HttpResponse {
         val boundary = "----microblogwriter${System.currentTimeMillis()}"
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
@@ -172,7 +179,17 @@ class MicroblogApi(private val context: Context) {
             output.writeBytes("--$boundary\r\n")
             output.writeBytes("Content-Disposition: form-data; name=\"file\"; filename=\"$fileName\"\r\n")
             output.writeBytes("Content-Type: $mimeType\r\n\r\n")
-            output.write(bytes)
+            val total = bytes.size.coerceAtLeast(1)
+            var uploaded = 0
+            var offset = 0
+            val chunkSize = 8 * 1024
+            while (offset < bytes.size) {
+                val count = minOf(chunkSize, bytes.size - offset)
+                output.write(bytes, offset, count)
+                uploaded += count
+                offset += count
+                onProgress(((uploaded * 100f) / total).toInt().coerceIn(0, 100))
+            }
             output.writeBytes("\r\n")
             output.writeBytes("--$boundary--\r\n")
         }

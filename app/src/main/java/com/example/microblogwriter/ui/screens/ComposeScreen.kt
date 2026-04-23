@@ -1,5 +1,10 @@
 package com.example.microblogwriter.ui.screens
 
+import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,27 +32,59 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.example.microblogwriter.domain.AppUiState
+import com.example.microblogwriter.domain.ImageUploadItem
 import com.example.microblogwriter.domain.LinkDialogState
+import com.example.microblogwriter.domain.UploadStatus
 import com.example.microblogwriter.ui.AppViewModel
 import com.example.microblogwriter.ui.editor.LinkInsertionRequest
+import com.example.microblogwriter.ui.editor.findMarkdownImageAtSelection
 import com.example.microblogwriter.ui.editor.insertInlineAtSelection
 import com.example.microblogwriter.ui.editor.insertLinkTemplate
 import com.example.microblogwriter.ui.editor.prefixSelectedLines
+import com.example.microblogwriter.ui.editor.replaceMarkdownImageAltText
 import com.example.microblogwriter.ui.editor.wrapInCodeBlock
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ComposeScreen(uiState: AppUiState, vm: AppViewModel) {
-    val altText = remember { mutableStateOf("") }
-    val imageUrl = remember { mutableStateOf("") }
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var imageAltEditorOpen by remember { mutableStateOf(false) }
+    var markdownAltText by remember { mutableStateOf("") }
+
     var editorValue by remember(uiState.selectedDraft.id) {
         mutableStateOf(TextFieldValue(uiState.selectedDraft.body, TextRange(uiState.selectedDraft.body.length)))
+    }
+
+    val pickMultiplePhotos = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(10)
+    ) { uris ->
+        vm.queueImages(uris.map(Uri::toString))
+    }
+
+    val pickMultipleFiles = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        vm.queueImages(uris.map(Uri::toString))
+    }
+
+    val captureImage = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        val capturedUri = pendingCameraUri
+        if (success && capturedUri != null) {
+            vm.queueImages(listOf(capturedUri.toString()))
+        }
+        pendingCameraUri = null
     }
 
     LaunchedEffect(uiState.selectedDraft.id, uiState.selectedDraft.body) {
@@ -125,6 +163,19 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel) {
                         vm.editBody(mutation.text)
                     }) { Text("Image") }
                     Button(onClick = {
+                        val match = findMarkdownImageAtSelection(
+                            editorValue.text,
+                            editorValue.selection.start,
+                            editorValue.selection.end
+                        )
+                        if (match != null) {
+                            markdownAltText = match.altText
+                            imageAltEditorOpen = true
+                        } else {
+                            vm.editBody(editorValue.text)
+                        }
+                    }) { Text("Edit image alt") }
+                    Button(onClick = {
                         val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "> ")
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
                         vm.editBody(mutation.text)
@@ -179,6 +230,39 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel) {
             }
         )
 
+        if (imageAltEditorOpen) {
+            val selectedImage = findMarkdownImageAtSelection(
+                editorValue.text,
+                editorValue.selection.start,
+                editorValue.selection.end
+            )
+            AlertDialog(
+                onDismissRequest = { imageAltEditorOpen = false },
+                title = { Text("Edit image alt text") },
+                text = {
+                    OutlinedTextField(
+                        value = markdownAltText,
+                        onValueChange = { markdownAltText = it },
+                        label = { Text("Alt text") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        if (selectedImage != null) {
+                            val mutation = replaceMarkdownImageAltText(editorValue.text, selectedImage, markdownAltText)
+                            editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
+                            vm.editBody(mutation.text)
+                        }
+                        imageAltEditorOpen = false
+                    }) { Text("Save") }
+                },
+                dismissButton = {
+                    Button(onClick = { imageAltEditorOpen = false }) { Text("Cancel") }
+                }
+            )
+        }
+
         Text("Words: ${uiState.markdownWordCount} • Reading time: ${uiState.readingTimeMinutes} min")
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -186,23 +270,32 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel) {
             Button(onClick = vm::togglePreview) { Text(if (uiState.previewMode) "Edit" else "Preview") }
         }
 
-        Text("Inline image upload")
-        OutlinedTextField(
-            value = imageUrl.value,
-            onValueChange = { imageUrl.value = it },
-            label = { Text("Image URL or picked URI") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = altText.value,
-            onValueChange = { altText.value = it },
-            label = { Text("Alt text") },
-            modifier = Modifier.fillMaxWidth()
-        )
+        Text("Image picker and upload queue")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = { vm.insertMarkdownImage(imageUrl.value, altText.value) }) { Text("Insert image markdown") }
-            Button(onClick = { vm.uploadImageAndInsert(imageUrl.value, altText.value) }) { Text("Upload + Insert") }
+            Button(onClick = {
+                pickMultiplePhotos.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            }) { Text("Pick photos") }
+            Button(onClick = { pickMultipleFiles.launch("image/*") }) { Text("Pick files") }
+            Button(onClick = {
+                val targetUri = createCameraImageUri(context)
+                pendingCameraUri = targetUri
+                captureImage.launch(targetUri)
+            }) { Text("Capture") }
+        }
+
+        ImageUploadQueue(
+            queue = uiState.imageUploadQueue,
+            onAltTextChange = vm::updateUploadAltText,
+            onRemove = vm::removeUploadItem
+        )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = vm::uploadQueuedImages, enabled = uiState.imageUploadQueue.isNotEmpty()) { Text("Upload queue") }
+            Button(onClick = vm::insertUploadedImagesMarkdown, enabled = uiState.imageUploadQueue.any { it.status == UploadStatus.SUCCEEDED }) {
+                Text("Insert uploaded markdown")
+            }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -224,6 +317,47 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel) {
         }
 
         uiState.statusMessage?.let { Text(it) }
+    }
+}
+
+@Composable
+private fun ImageUploadQueue(
+    queue: List<ImageUploadItem>,
+    onAltTextChange: (String, String) -> Unit,
+    onRemove: (String) -> Unit
+) {
+    if (queue.isEmpty()) {
+        Text("No images selected yet.")
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        queue.forEach { item ->
+            Surface(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(item.localUri)
+                    OutlinedTextField(
+                        value = item.altText,
+                        onValueChange = { onAltTextChange(item.id, it) },
+                        label = { Text("Alt text") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    when (item.status) {
+                        UploadStatus.UPLOADING -> {
+                            LinearProgressIndicator(progress = item.progressPercent / 100f, modifier = Modifier.fillMaxWidth())
+                            Text("Uploading ${item.progressPercent}%")
+                        }
+
+                        UploadStatus.SUCCEEDED -> Text("Uploaded: ${item.uploadedUrl.orEmpty()}")
+                        UploadStatus.FAILED -> Text("Error: ${item.errorMessage.orEmpty()}")
+                        UploadStatus.QUEUED -> Text("Queued")
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { onRemove(item.id) }) { Text("Remove") }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -262,5 +396,15 @@ private fun LinkInsertionDialog(
         dismissButton = {
             Button(onClick = onDismiss) { Text("Cancel") }
         }
+    )
+}
+
+private fun createCameraImageUri(context: Context): Uri {
+    val imageDir = File(context.cacheDir, "images").apply { mkdirs() }
+    val imageFile = File.createTempFile("capture_", ".jpg", imageDir)
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        imageFile
     )
 }

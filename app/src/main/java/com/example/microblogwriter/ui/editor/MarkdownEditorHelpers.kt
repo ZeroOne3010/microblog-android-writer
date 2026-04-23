@@ -18,6 +18,13 @@ data class LinkInsertionRequest(
     val initialUrl: String
 )
 
+data class MarkdownImageMatch(
+    val rangeStart: Int,
+    val rangeEnd: Int,
+    val altText: String,
+    val url: String
+)
+
 fun isValidHttpUrl(raw: String?): Boolean {
     val candidate = raw?.trim().orEmpty()
     if (candidate.isBlank()) return false
@@ -116,4 +123,31 @@ fun prefixSelectedLines(text: String, selectionStart: Int, selectionEnd: Int, pr
         selectionStart = rangeStart + startShift,
         selectionEnd = rangeEnd + endShift
     )
+}
+
+fun findMarkdownImageAtSelection(text: String, selectionStart: Int, selectionEnd: Int): MarkdownImageMatch? {
+    val imageRegex = Regex("""!\[([^\]]*)]\(([^)]+)\)""")
+    val safeStart = min(max(selectionStart, 0), text.length)
+    val safeEnd = min(max(selectionEnd, 0), text.length)
+    val point = min(safeStart, safeEnd)
+    return imageRegex.findAll(text)
+        .firstOrNull { match ->
+            val range = match.range
+            point in range.first..(range.last + 1)
+        }
+        ?.let { match ->
+            MarkdownImageMatch(
+                rangeStart = match.range.first,
+                rangeEnd = match.range.last + 1,
+                altText = match.groupValues[1],
+                url = match.groupValues[2]
+            )
+        }
+}
+
+fun replaceMarkdownImageAltText(text: String, match: MarkdownImageMatch, newAltText: String): EditorMutation {
+    val replacement = "![${newAltText.trim()}](${match.url})"
+    val newText = text.replaceRange(match.rangeStart, match.rangeEnd, replacement)
+    val cursor = match.rangeStart + replacement.length
+    return EditorMutation(newText, cursor)
 }

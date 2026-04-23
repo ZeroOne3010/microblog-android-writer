@@ -66,4 +66,24 @@ class MarkdownEditorHelpersTest {
         assertEquals(2, mutation.selectionStart)
         assertEquals(2, mutation.selectionEnd)
     }
+
+    @Test
+    fun `findMarkdownImageAtSelection finds image at caret`() {
+        val text = "Intro\n![old alt](https://example.com/image.jpg)\nOutro"
+        val match = findMarkdownImageAtSelection(text, 10, 10)
+
+        assertEquals("old alt", match?.altText)
+        assertEquals("https://example.com/image.jpg", match?.url)
+    }
+
+    @Test
+    fun `replaceMarkdownImageAltText updates alt text only`() {
+        val text = "![old alt](https://example.com/image.jpg)"
+        val match = findMarkdownImageAtSelection(text, 2, 2) ?: error("Expected match")
+
+        val mutation = replaceMarkdownImageAltText(text, match, "new alt")
+
+        assertEquals("![new alt](https://example.com/image.jpg)", mutation.text)
+        assertEquals(mutation.selectionStart, mutation.selectionEnd)
+    }
 }

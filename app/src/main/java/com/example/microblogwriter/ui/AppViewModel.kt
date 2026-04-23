@@ -9,8 +9,10 @@ import com.example.microblogwriter.data.SettingsRepository
 import com.example.microblogwriter.domain.AppUiState
 import com.example.microblogwriter.domain.Draft
 import com.example.microblogwriter.domain.DraftStatus
+import com.example.microblogwriter.domain.ImageUploadItem
 import com.example.microblogwriter.domain.LinkDialogState
 import com.example.microblogwriter.domain.SettingsState
+import com.example.microblogwriter.domain.UploadStatus
 import com.example.microblogwriter.ui.editor.buildLinkInsertionRequest
 import com.example.microblogwriter.network.MicroblogApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,6 +92,138 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun insertMarkdownImage(imageUrl: String, alt: String) {
         val markdown = "![${alt.ifBlank { "image" }}]($imageUrl)"
         updateDraft { copy(body = "$body\n$markdown") }
+    }
+
+    fun queueImages(localUris: List<String>) {
+        if (localUris.isEmpty()) return
+        _uiState.update { state ->
+            val existingUris = state.imageUploadQueue.map { it.localUri }.toSet()
+            val newItems = localUris
+                .filterNot(existingUris::contains)
+                .map { uri -> ImageUploadItem(localUri = uri) }
+            state.copy(
+                imageUploadQueue = state.imageUploadQueue + newItems,
+                statusMessage = if (newItems.isNotEmpty()) {
+                    "Queued ${newItems.size} image(s)"
+                } else {
+                    "Images already queued"
+                }
+            )
+        }
+    }
+
+    fun updateUploadAltText(itemId: String, altText: String) {
+        _uiState.update {
+            it.copy(
+                imageUploadQueue = it.imageUploadQueue.map { item ->
+                    if (item.id == itemId) item.copy(altText = altText) else item
+                }
+            )
+        }
+    }
+
+    fun removeUploadItem(itemId: String) {
+        _uiState.update { it.copy(imageUploadQueue = it.imageUploadQueue.filterNot { item -> item.id == itemId }) }
+    }
+
+    fun uploadQueuedImages() {
+        val queue = _uiState.value.imageUploadQueue.filter {
+            it.status != UploadStatus.SUCCEEDED && it.status != UploadStatus.UPLOADING
+        }
+        if (queue.isEmpty()) {
+            _uiState.update { it.copy(statusMessage = "No queued images to upload") }
+            return
+        }
+
+        queue.forEach { item ->
+            _uiState.update { state ->
+                state.copy(
+                    imageUploadQueue = state.imageUploadQueue.map { queued ->
+                        if (queued.id == item.id) {
+                            queued.copy(
+                                status = UploadStatus.UPLOADING,
+                                progressPercent = 0,
+                                errorMessage = null
+                            )
+                        } else {
+                            queued
+                        }
+                    }
+                )
+            }
+
+            viewModelScope.launch {
+                val snapshot = _uiState.value.imageUploadQueue.firstOrNull { it.id == item.id } ?: return@launch
+                val result = api.uploadImage(
+                    localUri = snapshot.localUri,
+                    alt = snapshot.altText,
+                    settings = _uiState.value.settings
+                ) { percent ->
+                    _uiState.update { state ->
+                        state.copy(
+                            imageUploadQueue = state.imageUploadQueue.map { queued ->
+                                if (queued.id == item.id) queued.copy(progressPercent = percent, status = UploadStatus.UPLOADING)
+                                else queued
+                            }
+                        )
+                    }
+                }
+
+                _uiState.update { state ->
+                    result.fold(
+                        onSuccess = { url ->
+                            state.copy(
+                                imageUploadQueue = state.imageUploadQueue.map { queued ->
+                                    if (queued.id == item.id) {
+                                        queued.copy(
+                                            status = UploadStatus.SUCCEEDED,
+                                            progressPercent = 100,
+                                            uploadedUrl = url,
+                                            errorMessage = null
+                                        )
+                                    } else {
+                                        queued
+                                    }
+                                },
+                                statusMessage = "Uploaded image"
+                            )
+                        },
+                        onFailure = { err ->
+                            state.copy(
+                                imageUploadQueue = state.imageUploadQueue.map { queued ->
+                                    if (queued.id == item.id) {
+                                        queued.copy(
+                                            status = UploadStatus.FAILED,
+                                            progressPercent = 0,
+                                            uploadedUrl = null,
+                                            errorMessage = err.message ?: "Upload failed"
+                                        )
+                                    } else {
+                                        queued
+                                    }
+                                },
+                                statusMessage = "One or more image uploads failed"
+                            )
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    fun insertUploadedImagesMarkdown() {
+        val uploaded = _uiState.value.imageUploadQueue.filter { it.status == UploadStatus.SUCCEEDED && !it.uploadedUrl.isNullOrBlank() }
+        if (uploaded.isEmpty()) {
+            _uiState.update { it.copy(statusMessage = "No uploaded images available to insert") }
+            return
+        }
+        val markdownBlock = uploaded.joinToString("\n") { item ->
+            "![${item.altText.ifBlank { "image" }}](${item.uploadedUrl})"
+        }
+        updateDraft {
+            copy(body = if (body.isBlank()) markdownBlock else "$body\n$markdownBlock")
+        }
+        _uiState.update { it.copy(statusMessage = "Inserted ${uploaded.size} uploaded image(s)") }
     }
 
     fun saveDraft() {
