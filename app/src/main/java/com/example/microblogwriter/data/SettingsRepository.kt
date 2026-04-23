@@ -22,7 +22,6 @@ class SettingsRepository(context: Context) {
         aiModel = prefs.getString("ai_model", "gpt-4.1-mini") ?: "gpt-4.1-mini",
         aiPromptTemplate = prefs.getString("ai_prompt", SettingsState().aiPromptTemplate) ?: SettingsState().aiPromptTemplate,
         microblogApiBaseUrl = prefs.getString("microblog_api_base_url", SettingsState().microblogApiBaseUrl) ?: SettingsState().microblogApiBaseUrl,
-        microblogAccessToken = prefs.getString("microblog_access_token", "") ?: "",
         microblogMediaEndpoint = prefs.getString("microblog_media_endpoint", "") ?: "",
         theme = AppTheme.valueOf(prefs.getString("theme", AppTheme.SYSTEM.name) ?: AppTheme.SYSTEM.name),
         categoryReminderEnabled = prefs.getBoolean("category_reminder", true)
@@ -36,7 +35,6 @@ class SettingsRepository(context: Context) {
             .putString("ai_model", settings.aiModel)
             .putString("ai_prompt", settings.aiPromptTemplate)
             .putString("microblog_api_base_url", settings.microblogApiBaseUrl)
-            .putString("microblog_access_token", settings.microblogAccessToken)
             .putString("microblog_media_endpoint", settings.microblogMediaEndpoint)
             .putString("theme", settings.theme.name)
             .putBoolean("category_reminder", settings.categoryReminderEnabled)

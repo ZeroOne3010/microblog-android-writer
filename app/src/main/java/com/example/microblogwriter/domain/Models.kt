@@ -1,5 +1,6 @@
 package com.example.microblogwriter.domain
 
+import com.example.microblogwriter.auth.AuthState
 import java.time.Instant
 import java.util.UUID
 
@@ -25,7 +26,6 @@ data class SettingsState(
     val aiModel: String = "gpt-4.1-mini",
     val aiPromptTemplate: String = "Here's my latest blog post titled {title}. Please review for any grammatical mistakes. Feel free to suggest changes for better flow, for example, but be careful not to change my own voice. {contents}",
     val microblogApiBaseUrl: String = "https://micro.blog",
-    val microblogAccessToken: String = "",
     val microblogMediaEndpoint: String = "",
     val theme: AppTheme = AppTheme.SYSTEM,
     val categoryReminderEnabled: Boolean = true
@@ -63,6 +63,7 @@ data class AppUiState(
     val readingTimeMinutes: Int = 0,
     val statusMessage: String? = null,
     val settings: SettingsState = SettingsState(),
+    val auth: AuthState = AuthState(),
     val linkDialogState: LinkDialogState? = null,
     val imageUploadQueue: List<ImageUploadItem> = emptyList()
 )

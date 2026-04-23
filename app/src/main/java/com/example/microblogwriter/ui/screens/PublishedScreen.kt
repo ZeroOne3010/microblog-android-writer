@@ -19,12 +19,18 @@ import com.example.microblogwriter.domain.Draft
 import com.example.microblogwriter.ui.AppViewModel
 
 @Composable
-fun PublishedScreen(uiState: AppUiState, vm: AppViewModel) {
+fun PublishedScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = vm::refreshPublishedPosts, enabled = !uiState.publishedPostsLoading) {
+            Button(onClick = vm::refreshPublishedPosts, enabled = uiState.auth.isAuthenticated && !uiState.publishedPostsLoading) {
                 Text(if (uiState.publishedPostsLoading) "Fetching..." else "Fetch recent posts")
             }
+            if (!uiState.auth.isAuthenticated) {
+                Button(onClick = onRequireAuth) { Text("Sign in") }
+            }
+        }
+        if (!uiState.auth.isAuthenticated) {
+            Text("You need to sign in to fetch/import/republish remote posts.")
         }
         uiState.publishedPostsError?.let { Text("Error: $it") }
 
@@ -34,7 +40,8 @@ fun PublishedScreen(uiState: AppUiState, vm: AppViewModel) {
                     post = post,
                     onImport = { vm.importPublishedPost(post) },
                     onOpenInEditor = { vm.openPublishedPostInEditor(post) },
-                    onRepublish = { vm.republishUpdate(post) }
+                    onRepublish = { vm.republishUpdate(post) },
+                    enabled = uiState.auth.isAuthenticated
                 )
             }
         }
@@ -46,7 +53,8 @@ private fun PublishedPostCard(
     post: Draft,
     onImport: () -> Unit,
     onOpenInEditor: () -> Unit,
-    onRepublish: () -> Unit
+    onRepublish: () -> Unit,
+    enabled: Boolean
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -57,10 +65,10 @@ private fun PublishedPostCard(
                 else "Categories: ${post.categories.joinToString()}"
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = onImport) { Text("Import locally") }
-                Button(onClick = onOpenInEditor) { Text("Open in editor") }
+                Button(onClick = onImport, enabled = enabled) { Text("Import locally") }
+                Button(onClick = onOpenInEditor, enabled = enabled) { Text("Open in editor") }
             }
-            Button(onClick = onRepublish) { Text("Republish update") }
+            Button(onClick = onRepublish, enabled = enabled) { Text("Republish update") }
         }
     }
 }

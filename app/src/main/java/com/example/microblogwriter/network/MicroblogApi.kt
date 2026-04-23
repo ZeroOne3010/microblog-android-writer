@@ -20,9 +20,9 @@ import java.net.URLEncoder
 class MicroblogApi(private val context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun publishPost(draft: Draft, settings: SettingsState): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun publishPost(draft: Draft, settings: SettingsState, accessToken: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            require(settings.microblogAccessToken.isNotBlank()) { "Micro.blog access token is required" }
+            require(accessToken.isNotBlank()) { "Micro.blog access token is required" }
 
             val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub"
             val form = if (draft.postId.isNullOrBlank()) {
@@ -42,7 +42,7 @@ class MicroblogApi(private val context: Context) {
                 }
             }
 
-            val response = postFormUrlEncoded(endpoint, settings.microblogAccessToken, form)
+            val response = postFormUrlEncoded(endpoint, accessToken, form)
             response.location
                 ?: extractPostId(response.body)
                 ?: draft.postId
@@ -54,19 +54,20 @@ class MicroblogApi(private val context: Context) {
         localUri: String,
         alt: String,
         settings: SettingsState,
+        accessToken: String,
         onProgress: (Int) -> Unit = {}
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            require(settings.microblogAccessToken.isNotBlank()) { "Micro.blog access token is required" }
+            require(accessToken.isNotBlank()) { "Micro.blog access token is required" }
             require(localUri.isNotBlank()) { "Image URI is required" }
 
-            val mediaEndpoint = resolveMediaEndpoint(settings)
+            val mediaEndpoint = resolveMediaEndpoint(settings, accessToken)
             val uri = Uri.parse(localUri)
             val (fileName, mimeType, bytes) = readImageBytes(uri)
 
             val response = postMultipart(
                 endpoint = mediaEndpoint,
-                token = settings.microblogAccessToken,
+                token = accessToken,
                 fileName = fileName,
                 mimeType = mimeType,
                 bytes = bytes,
@@ -80,11 +81,11 @@ class MicroblogApi(private val context: Context) {
         }
     }
 
-    suspend fun fetchRecentPosts(settings: SettingsState): Result<List<Draft>> = withContext(Dispatchers.IO) {
+    suspend fun fetchRecentPosts(settings: SettingsState, accessToken: String): Result<List<Draft>> = withContext(Dispatchers.IO) {
         runCatching {
-            require(settings.microblogAccessToken.isNotBlank()) { "Micro.blog access token is required" }
+            require(accessToken.isNotBlank()) { "Micro.blog access token is required" }
             val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub?q=source&limit=20"
-            val body = getRequest(endpoint, settings.microblogAccessToken).body
+            val body = getRequest(endpoint, accessToken).body
             val root = json.parseToJsonElement(body).jsonObject
             val items = root["items"]?.jsonArray ?: return@runCatching emptyList()
 
@@ -101,12 +102,12 @@ class MicroblogApi(private val context: Context) {
         }
     }
 
-    private fun resolveMediaEndpoint(settings: SettingsState): String {
+    private fun resolveMediaEndpoint(settings: SettingsState, accessToken: String): String {
         if (settings.microblogMediaEndpoint.isNotBlank()) {
             return settings.microblogMediaEndpoint
         }
         val configEndpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub?q=config"
-        val body = getRequest(configEndpoint, settings.microblogAccessToken).body
+        val body = getRequest(configEndpoint, accessToken).body
         val mediaEndpoint = json.parseToJsonElement(body)
             .jsonObject["media-endpoint"]
             ?.jsonPrimitive
