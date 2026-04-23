@@ -65,6 +65,21 @@ class MarkdownDraftRepository(private val context: Context) {
         return renamed
     }
 
+    fun importRemoteDraft(remoteDraft: Draft): Draft {
+        val existing = remoteDraft.postId?.let { remoteId ->
+            listDrafts().firstOrNull { it.postId == remoteId }
+        }
+        val now = Instant.now()
+        val imported = remoteDraft.copy(
+            id = existing?.id ?: createUniqueId(slugify(remoteDraft.title).ifBlank { "imported-post" }),
+            status = DraftStatus.DRAFT,
+            created = existing?.created ?: now,
+            updated = now
+        )
+        File(draftsDir, "${imported.id}.md").writeText(toMarkdown(imported))
+        return imported
+    }
+
     private fun parseDraft(file: File): Draft? {
         val text = file.readText()
         val parts = text.split("---")

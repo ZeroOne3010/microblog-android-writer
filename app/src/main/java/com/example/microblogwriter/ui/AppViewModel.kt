@@ -9,8 +9,8 @@ import com.example.microblogwriter.data.SettingsRepository
 import com.example.microblogwriter.domain.AppUiState
 import com.example.microblogwriter.domain.Draft
 import com.example.microblogwriter.domain.DraftStatus
-import com.example.microblogwriter.domain.SettingsState
 import com.example.microblogwriter.domain.LinkDialogState
+import com.example.microblogwriter.domain.SettingsState
 import com.example.microblogwriter.ui.editor.buildLinkInsertionRequest
 import com.example.microblogwriter.network.MicroblogApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +31,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         refreshDrafts()
+        refreshPublishedPosts()
     }
 
     fun refreshDrafts() {
@@ -154,8 +155,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun publishPost() {
-        val draft = _uiState.value.selectedDraft
-        saveDraft()
+        val draft = draftRepo.saveDraft(_uiState.value.selectedDraft)
+        _uiState.update { it.copy(selectedDraft = draft) }
         viewModelScope.launch {
             val result = api.publishPost(draft, _uiState.value.settings)
             _uiState.update {
@@ -171,7 +172,72 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             refreshDrafts()
+            refreshPublishedPosts()
         }
+    }
+
+    fun refreshPublishedPosts() {
+        _uiState.update { it.copy(publishedPostsLoading = true, publishedPostsError = null) }
+        viewModelScope.launch {
+            val result = api.fetchRecentPosts(_uiState.value.settings)
+            _uiState.update {
+                result.fold(
+                    onSuccess = { posts ->
+                        it.copy(
+                            publishedPosts = posts,
+                            publishedPostsLoading = false,
+                            publishedPostsError = null,
+                            statusMessage = "Fetched ${posts.size} published posts"
+                        )
+                    },
+                    onFailure = { err ->
+                        it.copy(
+                            publishedPosts = emptyList(),
+                            publishedPostsLoading = false,
+                            publishedPostsError = err.message ?: "Unable to fetch published posts",
+                            statusMessage = "Fetch published posts failed: ${err.message}"
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    fun importPublishedPost(post: Draft) {
+        val imported = draftRepo.importRemoteDraft(post)
+        refreshDrafts()
+        _uiState.update {
+            it.copy(
+                selectedDraft = imported,
+                markdownWordCount = wordCount(imported.body),
+                readingTimeMinutes = readingTime(wordCount(imported.body)),
+                statusMessage = "Imported published post into local drafts"
+            )
+        }
+    }
+
+    fun openPublishedPostInEditor(post: Draft) {
+        val local = _uiState.value.drafts.firstOrNull { it.postId == post.postId }
+        val selected = local ?: post.copy(status = DraftStatus.DRAFT)
+        _uiState.update {
+            val words = wordCount(selected.body)
+            it.copy(
+                selectedDraft = selected,
+                markdownWordCount = words,
+                readingTimeMinutes = readingTime(words),
+                statusMessage = if (local != null) {
+                    "Opened linked local draft in editor"
+                } else {
+                    "Opened remote post in editor (import to save locally)"
+                }
+            )
+        }
+    }
+
+    fun republishUpdate(post: Draft) {
+        val local = _uiState.value.drafts.firstOrNull { it.postId == post.postId } ?: draftRepo.importRemoteDraft(post)
+        _uiState.update { it.copy(selectedDraft = local) }
+        publishPost()
     }
 
     fun uploadImageAndInsert(localUri: String, alt: String) {
