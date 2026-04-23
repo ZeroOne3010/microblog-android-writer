@@ -217,7 +217,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openPublishedPostInEditor(post: Draft) {
-        val local = _uiState.value.drafts.firstOrNull { it.postId == post.postId }
+        val local = linkedLocalDraft(post.postId)
         val selected = local ?: post.copy(status = DraftStatus.DRAFT)
         _uiState.update {
             val words = wordCount(selected.body)
@@ -235,7 +235,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun republishUpdate(post: Draft) {
-        val local = _uiState.value.drafts.firstOrNull { it.postId == post.postId } ?: draftRepo.importRemoteDraft(post)
+        val local = linkedLocalDraft(post.postId) ?: draftRepo.importRemoteDraft(post)
         _uiState.update { it.copy(selectedDraft = local) }
         publishPost()
     }
@@ -274,6 +274,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val words = wordCount(updated.body)
             it.copy(selectedDraft = updated, markdownWordCount = words, readingTimeMinutes = readingTime(words))
         }
+    }
+
+    private fun linkedLocalDraft(postId: String?): Draft? {
+        if (postId.isNullOrBlank()) return null
+        return _uiState.value.drafts.firstOrNull { it.postId == postId }
     }
 
     private fun wordCount(text: String): Int = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }.size
