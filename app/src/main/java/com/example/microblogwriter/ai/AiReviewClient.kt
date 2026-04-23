@@ -1,5 +1,6 @@
 package com.example.microblogwriter.ai
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -50,7 +51,7 @@ class AiReviewClient(
             return@withContext Result.failure(AiReviewError.MissingConfiguration("Missing AI model"))
         }
 
-        val endpoint = providerBaseUrl.trim().trimEnd('/') + "/v1/chat/completions"
+        val endpoint = buildEndpoint(providerBaseUrl)
         val body = json.encodeToString(
             ChatRequest(
                 model = model,
@@ -100,10 +101,18 @@ class AiReviewClient(
             }
 
             Result.success(output)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (io: IOException) {
             Result.failure(AiReviewError.Network(io))
         } catch (ex: Exception) {
             Result.failure(AiReviewError.Provider(ex.message ?: "Unknown AI provider error"))
         }
+    }
+
+    private fun buildEndpoint(providerBaseUrl: String): String {
+        val trimmed = providerBaseUrl.trim().trimEnd('/')
+        val withoutVersionSuffix = if (trimmed.endsWith("/v1")) trimmed.removeSuffix("/v1") else trimmed
+        return withoutVersionSuffix + "/v1/chat/completions"
     }
 }
