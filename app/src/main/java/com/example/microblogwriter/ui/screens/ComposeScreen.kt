@@ -21,6 +21,7 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.example.microblogwriter.domain.AppUiState
@@ -60,6 +62,8 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
     var imageAltEditorOpen by remember { mutableStateOf(false) }
     var markdownAltText by remember { mutableStateOf("") }
+    var imagePanelExpanded by remember { mutableStateOf(true) }
+    var previousQueueSize by remember { mutableStateOf(uiState.imageUploadQueue.size) }
 
     var editorValue by remember(uiState.selectedDraft.id) {
         mutableStateOf(TextFieldValue(uiState.selectedDraft.body, TextRange(uiState.selectedDraft.body.length)))
@@ -92,6 +96,13 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             val cursor = editorValue.selection.end.coerceAtMost(uiState.selectedDraft.body.length)
             editorValue = TextFieldValue(uiState.selectedDraft.body, TextRange(cursor))
         }
+    }
+
+    LaunchedEffect(uiState.imageUploadQueue.size) {
+        if (uiState.imageUploadQueue.size > previousQueueSize) {
+            imagePanelExpanded = false
+        }
+        previousQueueSize = uiState.imageUploadQueue.size
     }
 
     Column(
@@ -274,31 +285,51 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             Button(onClick = vm::togglePreview) { Text(if (uiState.previewMode) "Edit" else "Preview") }
         }
 
-        Text("Image picker and upload queue")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = {
-                pickMultiplePhotos.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
-            }) { Text("Pick photos") }
-            Button(onClick = { pickMultipleFiles.launch("image/*") }) { Text("Pick files") }
-            Button(onClick = {
-                val targetUri = createCameraImageUri(context)
-                pendingCameraUri = targetUri
-                captureImage.launch(targetUri)
-            }) { Text("Capture") }
-        }
+        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Image picker and upload queue")
+                    Button(onClick = { imagePanelExpanded = !imagePanelExpanded }) {
+                        Text(if (imagePanelExpanded) "Collapse" else "Expand")
+                    }
+                }
 
-        ImageUploadQueue(
-            queue = uiState.imageUploadQueue,
-            onAltTextChange = vm::updateUploadAltText,
-            onRemove = vm::removeUploadItem
-        )
+                if (imagePanelExpanded) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = {
+                            pickMultiplePhotos.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        }) { Text("Pick photos") }
+                        Button(onClick = { pickMultipleFiles.launch("image/*") }) { Text("Pick files") }
+                        Button(onClick = {
+                            val targetUri = createCameraImageUri(context)
+                            pendingCameraUri = targetUri
+                            captureImage.launch(targetUri)
+                        }) { Text("Capture") }
+                    }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = vm::uploadQueuedImages, enabled = uiState.auth.isAuthenticated && uiState.imageUploadQueue.isNotEmpty()) { Text("Upload queue") }
-            Button(onClick = vm::insertUploadedImagesMarkdown, enabled = uiState.imageUploadQueue.any { it.status == UploadStatus.SUCCEEDED }) {
-                Text("Insert uploaded markdown")
+                    ImageUploadQueue(
+                        queue = uiState.imageUploadQueue,
+                        onAltTextChange = vm::updateUploadAltText,
+                        onRemove = vm::removeUploadItem
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = vm::uploadQueuedImages, enabled = uiState.auth.isAuthenticated && uiState.imageUploadQueue.isNotEmpty()) { Text("Upload queue") }
+                        Button(onClick = vm::insertUploadedImagesMarkdown, enabled = uiState.imageUploadQueue.any { it.status == UploadStatus.SUCCEEDED }) {
+                            Text("Insert uploaded markdown")
+                        }
+                    }
+                } else {
+                    Text("Panel collapsed. Expand to edit alt text, remove items, or upload.")
+                }
             }
         }
 
@@ -338,9 +369,13 @@ private fun ImageUploadQueue(
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         queue.forEach { item ->
-            Surface(modifier = Modifier.fillMaxWidth()) {
+            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(item.localUri)
+                    Text(
+                        text = item.localUri,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                     OutlinedTextField(
                         value = item.altText,
                         onValueChange = { onAltTextChange(item.id, it) },
@@ -357,7 +392,10 @@ private fun ImageUploadQueue(
                         UploadStatus.FAILED -> Text("Error: ${item.errorMessage.orEmpty()}")
                         UploadStatus.QUEUED -> Text("Queued")
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
                         Button(onClick = { onRemove(item.id) }) { Text("Remove") }
                     }
                 }
