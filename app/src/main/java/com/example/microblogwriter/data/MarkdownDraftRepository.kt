@@ -23,6 +23,8 @@ class MarkdownDraftRepository(private val context: Context) {
         return updatedDraft
     }
 
+    fun createDraft(initialDraft: Draft = Draft()): Draft = saveDraft(initialDraft.copy(status = DraftStatus.DRAFT))
+
     fun deleteDraft(id: String) {
         File(draftsDir, "$id.md").delete()
     }
