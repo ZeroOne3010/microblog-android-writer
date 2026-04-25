@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,7 +28,7 @@ fun PublishedScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> 
                 Text(if (uiState.publishedPostsLoading) "Fetching..." else "Fetch recent posts")
             }
             if (!uiState.auth.isAuthenticated) {
-                Button(onClick = onRequireAuth) { Text("Sign in") }
+                OutlinedButton(onClick = onRequireAuth) { Text("Sign in") }
             }
         }
         if (!uiState.auth.isAuthenticated) {
@@ -65,8 +67,8 @@ private fun PublishedPostCard(
                 else "Categories: ${post.categories.joinToString()}"
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = onImport, enabled = enabled) { Text("Import locally") }
-                Button(onClick = onOpenInEditor, enabled = enabled) { Text("Open in editor") }
+                OutlinedButton(onClick = onImport, enabled = enabled) { Text("Import locally") }
+                TextButton(onClick = onOpenInEditor, enabled = enabled) { Text("Open in editor") }
             }
             Button(onClick = onRepublish, enabled = enabled) { Text("Republish update") }
         }

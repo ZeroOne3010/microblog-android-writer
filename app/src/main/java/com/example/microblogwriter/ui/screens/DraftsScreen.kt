@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -25,6 +26,7 @@ import com.example.microblogwriter.domain.AppUiState
 import com.example.microblogwriter.domain.Draft
 import com.example.microblogwriter.domain.DraftStatus
 import com.example.microblogwriter.ui.AppViewModel
+import com.example.microblogwriter.ui.theme.destructiveButtonColors
 
 @Composable
 fun DraftsScreen(uiState: AppUiState, vm: AppViewModel) {
@@ -42,7 +44,7 @@ fun DraftsScreen(uiState: AppUiState, vm: AppViewModel) {
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Search drafts") }
         )
-        Button(onClick = vm::refreshDrafts) { Text("Refresh") }
+        OutlinedButton(onClick = vm::refreshDrafts) { Text("Refresh") }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(drafts, key = { it.id }) { draft ->
@@ -58,12 +60,15 @@ fun DraftsScreen(uiState: AppUiState, vm: AppViewModel) {
                         Text("Label: ${draftBadgeLabel(draft)}")
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Button(onClick = {
+                        OutlinedButton(onClick = {
                             renamingDraft = draft
                             renameValue = draft.title.ifBlank { draft.id }
                         }) { Text("Rename") }
-                        Button(onClick = { vm.duplicateDraft(draft.id) }) { Text("Duplicate") }
-                        Button(onClick = { vm.deleteDraft(draft.id) }) { Text("Delete") }
+                        OutlinedButton(onClick = { vm.duplicateDraft(draft.id) }) { Text("Duplicate") }
+                        Button(
+                            onClick = { vm.deleteDraft(draft.id) },
+                            colors = destructiveButtonColors()
+                        ) { Text("Delete") }
                     }
                 }
             }
