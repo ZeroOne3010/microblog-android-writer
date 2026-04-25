@@ -20,7 +20,7 @@ import java.net.URLEncoder
 class MicroblogApi(private val context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun publishPost(draft: Draft, settings: SettingsState, accessToken: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun publishPost(draft: Draft, settings: SettingsState, accessToken: String): Result<PublishResponse> = withContext(Dispatchers.IO) {
         runCatching {
             require(accessToken.isNotBlank()) { "Micro.blog access token is required" }
 
@@ -43,10 +43,16 @@ class MicroblogApi(private val context: Context) {
             }
 
             val response = postFormUrlEncoded(endpoint, accessToken, form)
-            response.location
-                ?: extractPostId(response.body)
-                ?: draft.postId
-                ?: throw IllegalStateException("Publish succeeded but post URL/ID was not returned")
+            val parsed = extractPublishResponse(response.body)
+            val permalink = response.location ?: parsed.permalink
+            val postId = parsed.postId ?: draft.postId
+            if (postId.isNullOrBlank() && permalink.isNullOrBlank()) {
+                throw IllegalStateException("Publish succeeded but post URL/ID was not returned")
+            }
+            PublishResponse(
+                postId = postId,
+                permalink = permalink
+            )
         }
     }
 
@@ -218,11 +224,18 @@ class MicroblogApi(private val context: Context) {
         return HttpResponse(body = response, location = location)
     }
 
-    private fun extractPostId(response: String): String? {
-        val root = runCatching { json.parseToJsonElement(response).jsonObject }.getOrNull() ?: return null
-        return root["url"]?.jsonPrimitive?.contentOrNull
-            ?: root["post"]?.jsonPrimitive?.contentOrNull
+    private fun extractPublishResponse(response: String): PublishResponse {
+        val root = runCatching { json.parseToJsonElement(response).jsonObject }.getOrNull()
+            ?: return PublishResponse(postId = null, permalink = null)
+        val permalink = root["url"]?.jsonPrimitive?.contentOrNull
+            ?: root["permalink"]?.jsonPrimitive?.contentOrNull
+            ?: root["location"]?.jsonPrimitive?.contentOrNull
+        val postId = root["post"]?.jsonPrimitive?.contentOrNull
             ?: root["id"]?.jsonPrimitive?.contentOrNull
+        return PublishResponse(
+            postId = postId,
+            permalink = permalink
+        )
     }
 
     private fun extractMediaUrl(response: String): String? {
@@ -235,5 +248,10 @@ class MicroblogApi(private val context: Context) {
     private data class HttpResponse(
         val body: String,
         val location: String?
+    )
+
+    data class PublishResponse(
+        val postId: String?,
+        val permalink: String?
     )
 }

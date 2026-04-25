@@ -22,7 +22,10 @@ import com.example.microblogwriter.domain.UploadStatus
 import com.example.microblogwriter.network.MicroblogApi
 import com.example.microblogwriter.ui.editor.buildLinkInsertionRequest
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -41,6 +44,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(AppUiState(settings = settingsRepo.load(), auth = authRepo.load()))
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
+    private val _events = MutableSharedFlow<UiEvent>(extraBufferCapacity = 2)
+    val events: SharedFlow<UiEvent> = _events.asSharedFlow()
+
+    private var lastPublishedPostId: String? = null
+    private var lastPublishedPermalink: String? = null
 
     init {
         refreshDrafts()
@@ -347,18 +355,32 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(selectedDraft = draft) }
         viewModelScope.launch {
             val result = api.publishPost(draft, _uiState.value.settings, _uiState.value.auth.accessToken)
-            _uiState.update {
-                result.fold(
-                    onSuccess = { postId ->
-                        val published = draft.copy(postId = postId, status = DraftStatus.PUBLISHED)
-                        draftRepo.saveDraft(published)
-                        it.copy(selectedDraft = published, statusMessage = "Published to Micro.blog")
-                    },
-                    onFailure = { err -> it.copy(statusMessage = "Publish failed, local draft kept: ${err.message}") }
-                )
+            result.fold(
+                onSuccess = { publishResponse ->
+                    val resolvedPostId = publishResponse.postId ?: publishResponse.permalink ?: draft.postId
+                    val published = draft.copy(postId = resolvedPostId, status = DraftStatus.PUBLISHED)
+                    lastPublishedPostId = resolvedPostId
+                    lastPublishedPermalink = publishResponse.permalink
+                    draftRepo.saveDraft(published)
+                    _uiState.update {
+                        it.copy(
+                            selectedDraft = published,
+                            statusMessage = "Published successfully. Synced posts list may update shortly."
+                        )
+                    }
+                    _events.emit(UiEvent.NavigateToPosts)
+                    publishResponse.permalink
+                        ?.takeIf(String::isNotBlank)
+                        ?.let { permalink -> _events.emit(UiEvent.PromptOpenInBrowser(permalink)) }
+                },
+                onFailure = { err ->
+                    _uiState.update { it.copy(statusMessage = "Publish failed, local draft kept: ${err.message}") }
+                }
+            )
+            if (result.isSuccess) {
+                refreshDrafts()
+                refreshPublishedPosts()
             }
-            refreshDrafts()
-            refreshPublishedPosts()
         }
     }
 
@@ -372,7 +394,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val result = api.fetchRecentPosts(_uiState.value.settings, _uiState.value.auth.accessToken)
             _uiState.update {
                 result.fold(
-                    onSuccess = { posts -> it.copy(publishedPosts = posts, publishedPostsLoading = false, publishedPostsError = null, statusMessage = "Fetched ${posts.size} published posts") },
+                    onSuccess = { posts -> it.copy(publishedPosts = posts, publishedPostsLoading = false, publishedPostsError = null) },
                     onFailure = { err -> it.copy(publishedPosts = emptyList(), publishedPostsLoading = false, publishedPostsError = err.message ?: "Unable to fetch published posts", statusMessage = "Fetch published posts failed: ${err.message}") }
                 )
             }
@@ -442,4 +464,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun wordCount(text: String): Int = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }.size
     private fun readingTime(words: Int): Int = max(1, words / 220)
+
+    sealed interface UiEvent {
+        data object NavigateToPosts : UiEvent
+        data class PromptOpenInBrowser(val url: String) : UiEvent
+    }
 }

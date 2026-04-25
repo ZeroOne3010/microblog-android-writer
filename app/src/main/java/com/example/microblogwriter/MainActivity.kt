@@ -16,10 +16,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -30,6 +34,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.microblogwriter.ui.AppViewModel.UiEvent
 import com.example.microblogwriter.ui.AppViewModel
 import com.example.microblogwriter.ui.screens.ComposeScreen
 import com.example.microblogwriter.ui.screens.DraftsScreen
@@ -79,11 +84,37 @@ fun MicroblogWriterApp(
 ) {
     val navController = rememberNavController()
     val uiState by appViewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(authRedirectUri) {
         authRedirectUri?.let { uri ->
             appViewModel.handleAuthRedirect(uri)
             onAuthRedirectConsumed()
+        }
+    }
+    LaunchedEffect(Unit) {
+        appViewModel.events.collect { event ->
+            when (event) {
+                UiEvent.NavigateToPosts -> {
+                    navController.navigate("published") {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+
+                is UiEvent.PromptOpenInBrowser -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = "Post published.",
+                        actionLabel = "Open published post",
+                        withDismissAction = true
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        val browserIntent = Intent(Intent.ACTION_VIEW, event.url.toUri())
+                        navController.context.startActivity(browserIntent)
+                    }
+                }
+            }
         }
     }
 
@@ -97,6 +128,7 @@ fun MicroblogWriterApp(
 
     MicroblogWriterTheme(theme = uiState.settings.theme) {
         Scaffold(
+            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             bottomBar = {
                 NavigationBar {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
