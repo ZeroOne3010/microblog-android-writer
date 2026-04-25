@@ -21,12 +21,12 @@ import com.example.microblogwriter.domain.SettingsState
 import com.example.microblogwriter.domain.UploadStatus
 import com.example.microblogwriter.network.MicroblogApi
 import com.example.microblogwriter.ui.editor.buildLinkInsertionRequest
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -44,8 +44,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(AppUiState(settings = settingsRepo.load(), auth = authRepo.load()))
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
-    private val _events = MutableSharedFlow<UiEvent>(extraBufferCapacity = 2)
-    val events: SharedFlow<UiEvent> = _events.asSharedFlow()
+    private val _events = Channel<UiEvent>(capacity = Channel.BUFFERED)
+    val events: Flow<UiEvent> = _events.receiveAsFlow()
 
     private var lastPublishedPostId: String? = null
     private var lastPublishedPermalink: String? = null
@@ -368,17 +368,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             statusMessage = "Published successfully. Synced posts list may update shortly."
                         )
                     }
-                    _events.emit(UiEvent.NavigateToPosts)
+                    _events.send(UiEvent.NavigateToPosts)
                     publishResponse.permalink
                         ?.takeIf(String::isNotBlank)
-                        ?.let { permalink -> _events.emit(UiEvent.PromptOpenInBrowser(permalink)) }
+                        ?.let { permalink -> _events.send(UiEvent.PromptOpenInBrowser(permalink)) }
                 },
                 onFailure = { err ->
                     _uiState.update { it.copy(statusMessage = "Publish failed, local draft kept: ${err.message}") }
                 }
             )
+            refreshDrafts()
             if (result.isSuccess) {
-                refreshDrafts()
                 refreshPublishedPosts()
             }
         }
