@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.example.microblogwriter.domain.AppTheme
 import com.example.microblogwriter.domain.AppUiState
 import com.example.microblogwriter.ui.AppViewModel
+import com.example.microblogwriter.ui.theme.destructiveButtonColors
 
 @Composable
 fun SettingsScreen(uiState: AppUiState, vm: AppViewModel) {
@@ -96,7 +97,10 @@ fun SettingsScreen(uiState: AppUiState, vm: AppViewModel) {
 
             Text(if (uiState.auth.isAuthenticated) "Auth: signed in as ${uiState.auth.me}" else "Auth: not signed in")
             if (uiState.auth.isAuthenticated) {
-                Button(onClick = vm::logout) { Text("Logout") }
+                Button(
+                    onClick = vm::logout,
+                    colors = destructiveButtonColors()
+                ) { Text("Logout") }
             }
 
             Text("Theme")

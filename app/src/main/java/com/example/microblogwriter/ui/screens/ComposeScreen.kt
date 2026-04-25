@@ -21,9 +21,11 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,6 +47,7 @@ import com.example.microblogwriter.domain.ImageUploadItem
 import com.example.microblogwriter.domain.LinkDialogState
 import com.example.microblogwriter.domain.UploadStatus
 import com.example.microblogwriter.ui.AppViewModel
+import com.example.microblogwriter.ui.theme.destructiveButtonColors
 import com.example.microblogwriter.ui.editor.LinkInsertionRequest
 import com.example.microblogwriter.ui.editor.findMarkdownImageAtSelection
 import com.example.microblogwriter.ui.editor.insertInlineAtSelection
@@ -112,7 +115,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
         Text("Writing-first compose")
         if (!uiState.auth.isAuthenticated) {
             Text("Sign in is required for publish/upload actions.")
-            Button(onClick = onRequireAuth) { Text("Go to sign in") }
+            OutlinedButton(onClick = onRequireAuth) { Text("Go to sign in") }
         }
         OutlinedTextField(
             value = uiState.selectedDraft.title,
@@ -154,12 +157,12 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                         .padding(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(onClick = {
+                    OutlinedButton(onClick = {
                         val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "# ")
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
                         vm.editBody(mutation.text)
                     }) { Text("H1") }
-                    Button(onClick = {
+                    OutlinedButton(onClick = {
                         vm.requestLinkInsertion(
                             body = editorValue.text,
                             selectionStart = editorValue.selection.start,
@@ -167,7 +170,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                             clipboardText = clipboardManager.getText()?.text
                         )
                     }) { Text("Link") }
-                    Button(onClick = {
+                    OutlinedButton(onClick = {
                         val mutation = insertInlineAtSelection(
                             editorValue.text,
                             editorValue.selection.start,
@@ -177,7 +180,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart))
                         vm.editBody(mutation.text)
                     }) { Text("Image") }
-                    Button(onClick = {
+                    OutlinedButton(onClick = {
                         val match = findMarkdownImageAtSelection(
                             editorValue.text,
                             editorValue.selection.start,
@@ -190,17 +193,17 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                             vm.editBody(editorValue.text)
                         }
                     }) { Text("Edit image alt") }
-                    Button(onClick = {
+                    OutlinedButton(onClick = {
                         val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "> ")
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
                         vm.editBody(mutation.text)
                     }) { Text("Quote") }
-                    Button(onClick = {
+                    OutlinedButton(onClick = {
                         val mutation = wrapInCodeBlock(editorValue.text, editorValue.selection.start, editorValue.selection.end)
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
                         vm.editBody(mutation.text)
                     }) { Text("Code") }
-                    Button(onClick = {
+                    OutlinedButton(onClick = {
                         val mutation = insertInlineAtSelection(
                             editorValue.text,
                             editorValue.selection.start,
@@ -273,7 +276,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                     }) { Text("Save") }
                 },
                 dismissButton = {
-                    Button(onClick = { imageAltEditorOpen = false }) { Text("Cancel") }
+                    TextButton(onClick = { imageAltEditorOpen = false }) { Text("Cancel") }
                 }
             )
         }
@@ -281,8 +284,8 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
         Text("Words: ${uiState.markdownWordCount} • Reading time: ${uiState.readingTimeMinutes} min")
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = vm::insertMoreTag) { Text("Insert <!--more-->") }
-            Button(onClick = vm::togglePreview) { Text(if (uiState.previewMode) "Edit" else "Preview") }
+            OutlinedButton(onClick = vm::insertMoreTag) { Text("Insert <!--more-->") }
+            TextButton(onClick = vm::togglePreview) { Text(if (uiState.previewMode) "Edit" else "Preview") }
         }
 
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
@@ -295,20 +298,20 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Image picker and upload queue")
-                    Button(onClick = { imagePanelExpanded = !imagePanelExpanded }) {
+                    TextButton(onClick = { imagePanelExpanded = !imagePanelExpanded }) {
                         Text(if (imagePanelExpanded) "Collapse" else "Expand")
                     }
                 }
 
                 if (imagePanelExpanded) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        Button(onClick = {
+                        OutlinedButton(onClick = {
                             pickMultiplePhotos.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         }) { Text("Pick photos") }
-                        Button(onClick = { pickMultipleFiles.launch("image/*") }) { Text("Pick files") }
-                        Button(onClick = {
+                        OutlinedButton(onClick = { pickMultipleFiles.launch("image/*") }) { Text("Pick files") }
+                        OutlinedButton(onClick = {
                             val targetUri = createCameraImageUri(context)
                             pendingCameraUri = targetUri
                             captureImage.launch(targetUri)
@@ -323,7 +326,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         Button(onClick = vm::uploadQueuedImages, enabled = uiState.auth.isAuthenticated && uiState.imageUploadQueue.isNotEmpty()) { Text("Upload queue") }
-                        Button(onClick = vm::insertUploadedImagesMarkdown, enabled = uiState.imageUploadQueue.any { it.status == UploadStatus.SUCCEEDED }) {
+                        TextButton(onClick = vm::insertUploadedImagesMarkdown, enabled = uiState.imageUploadQueue.any { it.status == UploadStatus.SUCCEEDED }) {
                             Text("Insert uploaded markdown")
                         }
                     }
@@ -334,8 +337,8 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = vm::saveDraft) { Text("Save Draft") }
-            Button(onClick = vm::runAiReview) { Text("AI Review") }
+            OutlinedButton(onClick = vm::saveDraft) { Text("Save Draft") }
+            TextButton(onClick = vm::runAiReview) { Text("AI Review") }
             Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated) { Text("Publish") }
         }
         Text("AI disclosure: When you tap AI Review, this draft content is sent to your configured provider.")
@@ -396,7 +399,10 @@ private fun ImageUploadQueue(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        Button(onClick = { onRemove(item.id) }) { Text("Remove") }
+                        Button(
+                            onClick = { onRemove(item.id) },
+                            colors = destructiveButtonColors()
+                        ) { Text("Remove") }
                     }
                 }
             }
@@ -437,7 +443,7 @@ private fun LinkInsertionDialog(
             }
         },
         dismissButton = {
-            Button(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
 }

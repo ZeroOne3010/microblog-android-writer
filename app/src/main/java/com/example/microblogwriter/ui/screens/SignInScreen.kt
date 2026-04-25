@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.microblogwriter.auth.AuthState
+import com.example.microblogwriter.ui.theme.destructiveButtonColors
 
 @Composable
 fun SignInScreen(
@@ -52,7 +53,10 @@ fun SignInScreen(
         if (authState.isAuthenticated) {
             Text("Signed in as: ${authState.me.ifBlank { "(unknown me)" }}")
             Text("Scope: ${authState.scope.ifBlank { "(not returned)" }}")
-            Button(onClick = onLogout) { Text("Logout") }
+            Button(
+                onClick = onLogout,
+                colors = destructiveButtonColors()
+            ) { Text("Logout") }
         }
 
         authState.authError?.let { Text("Auth error: $it") }
