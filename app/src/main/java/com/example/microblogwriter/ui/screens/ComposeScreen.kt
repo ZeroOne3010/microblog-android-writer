@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
@@ -52,7 +54,7 @@ import com.example.microblogwriter.ui.editor.prefixSelectedLines
 import com.example.microblogwriter.ui.editor.replaceMarkdownImageAltText
 import com.example.microblogwriter.ui.editor.wrapInCodeBlock
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Unit) {
     val clipboardManager = LocalClipboardManager.current
@@ -98,22 +100,34 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             modifier = Modifier.fillMaxWidth()
         )
 
-        OutlinedTextField(
-            value = uiState.selectedDraft.categories.joinToString(", "),
-            onValueChange = vm::editCategories,
-            label = { Text("Categories (always visible)") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            uiState.categoryHistory.take(4).forEach { category ->
-                FilterChip(
-                    selected = uiState.selectedDraft.categories.contains(category),
-                    onClick = {
-                        val next = (uiState.selectedDraft.categories + category).distinct().joinToString(",")
-                        vm.editCategories(next)
-                    },
-                    label = { Text(category) }
+        val categories = if (uiState.blogCategories.isNotEmpty()) {
+            uiState.blogCategories
+        } else {
+            uiState.categoryHistory
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Categories")
+                TextButton(onClick = vm::refreshBlogCategories, enabled = uiState.auth.isAuthenticated && !uiState.blogCategoriesLoading) {
+                    Text(if (uiState.blogCategoriesLoading) "Loading..." else "Refresh")
+                }
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                categories.forEach { category ->
+                    FilterChip(
+                        selected = uiState.selectedDraft.categories.contains(category),
+                        onClick = { vm.toggleCategory(category) },
+                        label = { Text(category) }
+                    )
+                }
+            }
+            if (categories.isEmpty()) {
+                Text(
+                    if (uiState.auth.isAuthenticated) "No existing categories returned by Micropub config."
+                    else "Sign in to load categories from your Micro.blog."
                 )
             }
         }

@@ -7,6 +7,8 @@ import com.example.microblogwriter.domain.SettingsState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -105,6 +107,20 @@ class MicroblogApi(private val context: Context) {
                     postId = obj["url"]?.jsonPrimitive?.contentOrNull
                 )
             }
+        }
+    }
+
+    suspend fun fetchCategories(settings: SettingsState, accessToken: String): Result<List<String>> = withContext(Dispatchers.IO) {
+        runCatching {
+            require(accessToken.isNotBlank()) { "Micro.blog access token is required" }
+            val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub?q=config"
+            val root = json.parseToJsonElement(getRequest(endpoint, accessToken).body).jsonObject
+            val direct = parseCategoryArray(root["categories"] ?: root["category"])
+            val destinations = root["destination"]?.jsonArray.orEmpty().flatMap { destination ->
+                val destinationObject = destination.jsonObject
+                parseCategoryArray(destinationObject["categories"] ?: destinationObject["category"])
+            }
+            (direct + destinations).distinct().sorted()
         }
     }
 
@@ -243,6 +259,18 @@ class MicroblogApi(private val context: Context) {
         return root["url"]?.jsonPrimitive?.contentOrNull
             ?: root["path"]?.jsonPrimitive?.contentOrNull
             ?: root["location"]?.jsonPrimitive?.contentOrNull
+    }
+
+    private fun parseCategoryArray(element: kotlinx.serialization.json.JsonElement?): List<String> {
+        val array = element?.jsonArray ?: return emptyList()
+        return array.mapNotNull { value ->
+            when (value) {
+                is JsonPrimitive -> value.contentOrNull
+                is JsonObject -> value["name"]?.jsonPrimitive?.contentOrNull
+                    ?: value["uid"]?.jsonPrimitive?.contentOrNull
+                else -> null
+            }
+        }.filter { it.isNotBlank() }
     }
 
     private data class HttpResponse(
