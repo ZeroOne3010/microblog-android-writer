@@ -23,10 +23,15 @@ import androidx.compose.ui.unit.dp
 import com.example.microblogwriter.domain.AppTheme
 import com.example.microblogwriter.domain.AppUiState
 import com.example.microblogwriter.ui.AppViewModel
-import com.example.microblogwriter.ui.theme.destructiveButtonColors
 
 @Composable
-fun SettingsScreen(uiState: AppUiState, vm: AppViewModel) {
+fun SettingsScreen(
+    uiState: AppUiState,
+    vm: AppViewModel,
+    focusAccountSection: Boolean = false,
+    onStartSignIn: (String) -> Unit,
+    onLogout: () -> Unit
+) {
     var settings by remember(uiState.settings) { mutableStateOf(uiState.settings) }
 
     Scaffold(
@@ -52,6 +57,14 @@ fun SettingsScreen(uiState: AppUiState, vm: AppViewModel) {
                 .padding(top = 12.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            AccountSection(
+                authState = uiState.auth,
+                defaultMe = uiState.auth.me.ifBlank { "https://micro.blog" },
+                onStartSignIn = onStartSignIn,
+                onLogout = onLogout,
+                autofocus = focusAccountSection
+            )
+
             Text("AI settings")
             RowSwitch("Enable AI review", settings.aiEnabled) { settings = settings.copy(aiEnabled = it) }
             OutlinedTextField(
@@ -94,14 +107,6 @@ fun SettingsScreen(uiState: AppUiState, vm: AppViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Media endpoint (optional override)") }
             )
-
-            Text(if (uiState.auth.isAuthenticated) "Auth: signed in as ${uiState.auth.me}" else "Auth: not signed in")
-            if (uiState.auth.isAuthenticated) {
-                Button(
-                    onClick = vm::logout,
-                    colors = destructiveButtonColors()
-                ) { Text("Logout") }
-            }
 
             Text("Theme")
             RowSwitch("System default", settings.theme == AppTheme.SYSTEM) {

@@ -115,7 +115,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
         Text("Writing-first compose")
         if (!uiState.auth.isAuthenticated) {
             Text("Sign in is required for publish/upload actions.")
-            OutlinedButton(onClick = onRequireAuth) { Text("Go to sign in") }
+            OutlinedButton(onClick = onRequireAuth) { Text("Go to account settings") }
         }
         OutlinedTextField(
             value = uiState.selectedDraft.title,

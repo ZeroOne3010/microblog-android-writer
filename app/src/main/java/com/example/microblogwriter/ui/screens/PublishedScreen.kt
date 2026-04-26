@@ -28,11 +28,11 @@ fun PublishedScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> 
                 Text(if (uiState.publishedPostsLoading) "Fetching..." else "Fetch recent posts")
             }
             if (!uiState.auth.isAuthenticated) {
-                OutlinedButton(onClick = onRequireAuth) { Text("Sign in") }
+                OutlinedButton(onClick = onRequireAuth) { Text("Account") }
             }
         }
         if (!uiState.auth.isAuthenticated) {
-            Text("You need to sign in to fetch/import/republish remote posts.")
+            Text("You need to sign in from Account settings to fetch/import/republish remote posts.")
         }
         uiState.publishedPostsError?.let { Text("Error: $it") }
 
