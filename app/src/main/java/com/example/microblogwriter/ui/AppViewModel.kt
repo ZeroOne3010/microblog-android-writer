@@ -444,10 +444,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { it.copy(blogCategories = emptyList(), blogCategoriesLoading = false) }
             return
         }
+        val requestToken = _uiState.value.auth.accessToken
         _uiState.update { it.copy(blogCategoriesLoading = true) }
         viewModelScope.launch {
-            val result = api.fetchCategories(_uiState.value.settings, _uiState.value.auth.accessToken)
+            val result = api.fetchCategories(_uiState.value.settings, requestToken)
             _uiState.update { current ->
+                if (!current.auth.isAuthenticated || current.auth.accessToken != requestToken) {
+                    return@update current.copy(blogCategoriesLoading = false)
+                }
                 result.fold(
                     onSuccess = { categories -> current.copy(blogCategories = categories, blogCategoriesLoading = false) },
                     onFailure = { err ->

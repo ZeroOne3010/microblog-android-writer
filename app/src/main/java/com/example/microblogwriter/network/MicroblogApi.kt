@@ -7,6 +7,8 @@ import com.example.microblogwriter.domain.SettingsState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -262,9 +264,12 @@ class MicroblogApi(private val context: Context) {
     private fun parseCategoryArray(element: kotlinx.serialization.json.JsonElement?): List<String> {
         val array = element?.jsonArray ?: return emptyList()
         return array.mapNotNull { value ->
-            value.jsonPrimitive.contentOrNull
-                ?: value.jsonObject["name"]?.jsonPrimitive?.contentOrNull
-                ?: value.jsonObject["uid"]?.jsonPrimitive?.contentOrNull
+            when (value) {
+                is JsonPrimitive -> value.contentOrNull
+                is JsonObject -> value["name"]?.jsonPrimitive?.contentOrNull
+                    ?: value["uid"]?.jsonPrimitive?.contentOrNull
+                else -> null
+            }
         }.filter { it.isNotBlank() }
     }
 
