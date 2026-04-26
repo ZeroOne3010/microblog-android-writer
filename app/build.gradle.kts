@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.microblogwriter"
+    namespace = "io.github.zeroone3010.yablogwriter"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.microblogwriter"
+        applicationId = "io.github.zeroone3010.yablogwriter"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
