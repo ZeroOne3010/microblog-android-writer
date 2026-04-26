@@ -63,7 +63,7 @@ fun DraftsScreen(
                 Text(if (uiState.publishedPostsLoading) "Fetching..." else "Fetch published")
             }
             if (!uiState.auth.isAuthenticated) {
-                TextButton(onClick = onRequireAuth) { Text("Sign in") }
+                TextButton(onClick = onRequireAuth) { Text("Account") }
             }
         }
         uiState.publishedPostsError?.let { Text("Published fetch error: $it") }

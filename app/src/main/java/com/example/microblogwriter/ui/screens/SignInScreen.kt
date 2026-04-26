@@ -5,10 +5,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,15 +28,45 @@ fun SignInScreen(
     onStartSignIn: (String) -> Unit,
     onLogout: () -> Unit
 ) {
-    var meInput by remember(defaultMe) { mutableStateOf(defaultMe) }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text("Sign in to Micro.blog")
+        AccountSection(
+            authState = authState,
+            defaultMe = defaultMe,
+            onStartSignIn = onStartSignIn,
+            onLogout = onLogout
+        )
+    }
+}
+
+@Composable
+fun AccountSection(
+    authState: AuthState,
+    defaultMe: String,
+    onStartSignIn: (String) -> Unit,
+    onLogout: () -> Unit,
+    autofocus: Boolean = false
+) {
+    var meInput by remember(defaultMe) { mutableStateOf(defaultMe) }
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+
+    LaunchedEffect(autofocus) {
+        if (autofocus) {
+            bringIntoViewRequester.bringIntoView()
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoViewRequester),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text("Account")
         Text("Uses IndieAuth to acquire a Micropub token compatible with Micro.blog.")
 
         OutlinedTextField(
@@ -57,6 +90,8 @@ fun SignInScreen(
                 onClick = onLogout,
                 colors = destructiveButtonColors()
             ) { Text("Logout") }
+        } else {
+            Text("Auth: not signed in")
         }
 
         authState.authError?.let { Text("Auth error: $it") }
