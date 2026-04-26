@@ -241,8 +241,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (!ensureAuthenticated("Sign in to upload images.")) return
         val selectedUri = localUris.firstOrNull() ?: return
         _uiState.update { state ->
+            val inFlightUploads = state.imageUploadQueue.filter { it.status == UploadStatus.UPLOADING }
             state.copy(
-                imageUploadQueue = listOf(ImageUploadItem(localUri = selectedUri)),
+                imageUploadQueue = inFlightUploads + ImageUploadItem(localUri = selectedUri),
                 statusMessage = "Selected image"
             )
         }
@@ -260,19 +261,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun uploadQueuedImages() {
         if (!ensureAuthenticated("Sign in to upload images.")) return
-        val selected = _uiState.value.imageUploadQueue.firstOrNull()
-        if (selected == null) {
+        val queue = _uiState.value.imageUploadQueue
+        val selected = queue.firstOrNull { it.status == UploadStatus.QUEUED || it.status == UploadStatus.FAILED }
+        if (selected == null && queue.isEmpty()) {
             _uiState.update { it.copy(statusMessage = "No image selected") }
             return
         }
-        if (selected.status == UploadStatus.UPLOADING) {
+        if (selected == null && queue.any { it.status == UploadStatus.UPLOADING }) {
             _uiState.update { it.copy(statusMessage = "Image upload already in progress") }
             return
         }
-        if (selected.status == UploadStatus.SUCCEEDED) {
+        if (selected == null && queue.any { it.status == UploadStatus.SUCCEEDED }) {
             _uiState.update { it.copy(statusMessage = "Image already uploaded") }
             return
         }
+        if (selected == null) return
 
         _uiState.update { state ->
             state.copy(imageUploadQueue = state.imageUploadQueue.map { queued ->
@@ -318,7 +321,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun insertUploadedImagesMarkdown() {
-        val uploaded = _uiState.value.imageUploadQueue.firstOrNull { it.status == UploadStatus.SUCCEEDED && !it.uploadedUrl.isNullOrBlank() }
+        val uploaded = _uiState.value.imageUploadQueue.lastOrNull { it.status == UploadStatus.SUCCEEDED && !it.uploadedUrl.isNullOrBlank() }
         if (uploaded == null) {
             _uiState.update { it.copy(statusMessage = "No uploaded image available to insert") }
             return
