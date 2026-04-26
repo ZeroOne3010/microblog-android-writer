@@ -15,6 +15,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.Card
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,11 +30,19 @@ import com.example.microblogwriter.ui.AppViewModel
 import com.example.microblogwriter.ui.theme.destructiveButtonColors
 
 @Composable
-fun DraftsScreen(uiState: AppUiState, vm: AppViewModel) {
+fun DraftsScreen(
+    uiState: AppUiState,
+    vm: AppViewModel,
+    onOpenEditor: () -> Unit = {},
+    onRequireAuth: () -> Unit = {}
+) {
     var query by remember { mutableStateOf("") }
     var renamingDraft by remember { mutableStateOf<Draft?>(null) }
     var renameValue by remember { mutableStateOf("") }
     val drafts = uiState.drafts.filter {
+        it.title.contains(query, ignoreCase = true) || it.body.contains(query, ignoreCase = true)
+    }
+    val publishedPosts = uiState.publishedPosts.filter {
         it.title.contains(query, ignoreCase = true) || it.body.contains(query, ignoreCase = true)
     }
 
@@ -42,18 +51,40 @@ fun DraftsScreen(uiState: AppUiState, vm: AppViewModel) {
             value = query,
             onValueChange = { query = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Search drafts") }
+            label = { Text("Search posts") }
         )
-        OutlinedButton(onClick = vm::refreshDrafts) { Text("Refresh") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {
+                vm.createNewPost()
+                onOpenEditor()
+            }) { Text("New Post") }
+            OutlinedButton(onClick = vm::refreshDrafts) { Text("Refresh") }
+            OutlinedButton(onClick = vm::refreshPublishedPosts, enabled = uiState.auth.isAuthenticated && !uiState.publishedPostsLoading) {
+                Text(if (uiState.publishedPostsLoading) "Fetching..." else "Fetch published")
+            }
+            if (!uiState.auth.isAuthenticated) {
+                TextButton(onClick = onRequireAuth) { Text("Sign in") }
+            }
+        }
+        uiState.publishedPostsError?.let { Text("Published fetch error: $it") }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                Text("Local posts")
+            }
             items(drafts, key = { it.id }) { draft ->
                 Row(
-                    modifier = Modifier.fillMaxWidth().clickable { vm.selectDraft(draft.id) }.padding(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            vm.selectDraft(draft.id)
+                            onOpenEditor()
+                        }
+                        .padding(8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(draft.title.ifBlank { "Untitled draft" })
+                        Text(draft.title.ifBlank { "Untitled post" })
                         Text("Updated: ${draft.updated}")
                         Text("Categories: ${draft.categories.joinToString()}")
                         Text("Status: ${draft.status}")
@@ -72,13 +103,35 @@ fun DraftsScreen(uiState: AppUiState, vm: AppViewModel) {
                     }
                 }
             }
+
+            item {
+                Text("Published posts")
+            }
+            items(publishedPosts, key = { it.postId ?: it.id }) { post ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(post.title.ifBlank { "Untitled post" })
+                        Text("Categories: ${post.categories.joinToString().ifBlank { "(none)" }}")
+                        Text("Label: ${publishedBadgeLabel(post)}")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { vm.importPublishedPost(post) }, enabled = uiState.auth.isAuthenticated) {
+                                Text("Import locally")
+                            }
+                            TextButton(onClick = {
+                                vm.openPublishedPostInEditor(post)
+                                onOpenEditor()
+                            }) { Text("Open in editor") }
+                        }
+                    }
+                }
+            }
         }
     }
 
     if (renamingDraft != null) {
         AlertDialog(
             onDismissRequest = { renamingDraft = null },
-            title = { Text("Rename draft") },
+            title = { Text("Rename post") },
             text = {
                 OutlinedTextField(
                     value = renameValue,
@@ -102,5 +155,10 @@ fun DraftsScreen(uiState: AppUiState, vm: AppViewModel) {
 private fun draftBadgeLabel(draft: Draft): String = when {
     draft.status == DraftStatus.PENDING_PUBLISH -> "Pending Publish"
     !draft.postId.isNullOrBlank() -> "Published Linked"
-    else -> "Local Draft"
+    else -> "Local Post"
+}
+
+private fun publishedBadgeLabel(post: Draft): String = when {
+    post.postId.isNullOrBlank() -> "Published (No ID)"
+    else -> "Published Remote"
 }

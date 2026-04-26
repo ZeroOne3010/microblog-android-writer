@@ -337,7 +337,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = vm::saveDraft) { Text("Save Draft") }
+            OutlinedButton(onClick = vm::saveDraft) { Text("Save Post") }
             TextButton(onClick = vm::runAiReview) { Text("AI Review") }
             Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated) { Text("Publish") }
         }

@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Publish
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -38,7 +36,6 @@ import com.example.microblogwriter.ui.AppViewModel.UiEvent
 import com.example.microblogwriter.ui.AppViewModel
 import com.example.microblogwriter.ui.screens.ComposeScreen
 import com.example.microblogwriter.ui.screens.DraftsScreen
-import com.example.microblogwriter.ui.screens.PublishedScreen
 import com.example.microblogwriter.ui.screens.SettingsScreen
 import com.example.microblogwriter.ui.screens.SignInScreen
 import com.example.microblogwriter.ui.theme.MicroblogWriterTheme
@@ -96,7 +93,7 @@ fun MicroblogWriterApp(
         appViewModel.events.collect { event ->
             when (event) {
                 UiEvent.NavigateToPosts -> {
-                    navController.navigate("published") {
+                    navController.navigate("drafts") {
                         popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
@@ -120,9 +117,7 @@ fun MicroblogWriterApp(
 
     val items = listOf(
         NavItem("auth", "Sign In") { Icon(Icons.Filled.AccountCircle, null) },
-        NavItem("drafts", "Drafts") { Icon(Icons.AutoMirrored.Filled.List, null) },
-        NavItem("compose", "New Post") { Icon(Icons.Filled.Add, null) },
-        NavItem("published", "Published") { Icon(Icons.Filled.Publish, null) },
+        NavItem("drafts", "Posts") { Icon(Icons.AutoMirrored.Filled.List, null) },
         NavItem("settings", "Settings") { Icon(Icons.Filled.Settings, null) }
     )
 
@@ -164,12 +159,16 @@ fun MicroblogWriterApp(
                         onLogout = appViewModel::logout
                     )
                 }
-                composable("drafts") { DraftsScreen(uiState, appViewModel) }
+                composable("drafts") {
+                    DraftsScreen(
+                        uiState = uiState,
+                        vm = appViewModel,
+                        onOpenEditor = { navController.navigate("compose") },
+                        onRequireAuth = { navController.navigate("auth") }
+                    )
+                }
                 composable("compose") {
                     ComposeScreen(uiState, appViewModel, onRequireAuth = { navController.navigate("auth") })
-                }
-                composable("published") {
-                    PublishedScreen(uiState, appViewModel, onRequireAuth = { navController.navigate("auth") })
                 }
                 composable("settings") { SettingsScreen(uiState, appViewModel) }
             }
