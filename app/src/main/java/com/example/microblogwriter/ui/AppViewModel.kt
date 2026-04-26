@@ -22,6 +22,7 @@ import com.example.microblogwriter.domain.UploadStatus
 import com.example.microblogwriter.network.MicroblogApi
 import com.example.microblogwriter.ui.editor.buildLinkInsertionRequest
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.math.max
 
@@ -52,6 +54,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private var lastPublishedPostId: String? = null
     private var lastPublishedPermalink: String? = null
     private var autosaveJob: Job? = null
+    private var autosaveVersion: Long = 0L
 
     companion object {
         private const val AUTOSAVE_DEBOUNCE_MS = 1200L
@@ -194,7 +197,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun createNewPost() {
-        autosaveJob?.cancel()
+        cancelPendingAutosave()
         val created = draftRepo.createDraft()
         refreshDrafts()
         _uiState.update {
@@ -324,7 +327,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveDraft() {
-        autosaveJob?.cancel()
+        cancelPendingAutosave()
         val saved = draftRepo.saveDraft(_uiState.value.selectedDraft)
         _uiState.update { it.copy(selectedDraft = saved, statusMessage = "Post saved locally") }
         refreshDrafts()
@@ -374,6 +377,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun publishPost() {
         if (!ensureAuthenticated("Sign in to publish posts.")) return
+        cancelPendingAutosave()
         val draft = draftRepo.saveDraft(_uiState.value.selectedDraft)
         _uiState.update { it.copy(selectedDraft = draft) }
         viewModelScope.launch {
@@ -462,14 +466,38 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun scheduleAutosave(draft: Draft) {
         autosaveJob?.cancel()
+        val version = ++autosaveVersion
         autosaveJob = viewModelScope.launch {
             delay(AUTOSAVE_DEBOUNCE_MS)
-            val saved = draftRepo.saveDraft(draft)
-            _uiState.update {
-                if (it.selectedDraft.id == saved.id) it.copy(selectedDraft = saved) else it
+            if (version != autosaveVersion) return@launch
+            val current = _uiState.value.selectedDraft
+            if (current.id == draft.id && current.status == DraftStatus.PUBLISHED && !current.postId.isNullOrBlank()) {
+                return@launch
             }
-            refreshDrafts()
+            val (saved, drafts, categories) = withContext(Dispatchers.IO) {
+                val savedDraft = draftRepo.saveDraft(draft)
+                val allDrafts = draftRepo.listDrafts()
+                val allCategories = allDrafts.flatMap { it.categories }.distinct().sorted()
+                Triple(savedDraft, allDrafts, allCategories)
+            }
+            _uiState.update {
+                val selectedDraft = if (it.selectedDraft.id == saved.id) saved else it.selectedDraft
+                val words = wordCount(selectedDraft.body)
+                it.copy(
+                    drafts = drafts,
+                    categoryHistory = categories,
+                    selectedDraft = selectedDraft,
+                    markdownWordCount = words,
+                    readingTimeMinutes = readingTime(words)
+                )
+            }
         }
+    }
+
+    private fun cancelPendingAutosave() {
+        autosaveVersion++
+        autosaveJob?.cancel()
+        autosaveJob = null
     }
 
     private fun ensureAuthenticated(message: String): Boolean {
