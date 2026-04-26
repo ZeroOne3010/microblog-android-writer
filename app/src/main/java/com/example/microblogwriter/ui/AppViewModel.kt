@@ -239,15 +239,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun queueImages(localUris: List<String>) {
         if (!ensureAuthenticated("Sign in to upload images.")) return
-        if (localUris.isEmpty()) return
+        val selectedUri = localUris.firstOrNull() ?: return
         _uiState.update { state ->
-            val existingUris = state.imageUploadQueue.map { it.localUri }.toSet()
-            val newItems = localUris
-                .filterNot(existingUris::contains)
-                .map { uri -> ImageUploadItem(localUri = uri) }
+            val inFlightUploads = state.imageUploadQueue.filter { it.status == UploadStatus.UPLOADING }
             state.copy(
-                imageUploadQueue = state.imageUploadQueue + newItems,
-                statusMessage = if (newItems.isNotEmpty()) "Queued ${newItems.size} image(s)" else "Images already queued"
+                imageUploadQueue = inFlightUploads + ImageUploadItem(localUri = selectedUri),
+                statusMessage = "Selected image"
             )
         }
     }
@@ -264,66 +261,74 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun uploadQueuedImages() {
         if (!ensureAuthenticated("Sign in to upload images.")) return
-        val queue = _uiState.value.imageUploadQueue.filter { it.status != UploadStatus.SUCCEEDED && it.status != UploadStatus.UPLOADING }
-        if (queue.isEmpty()) {
-            _uiState.update { it.copy(statusMessage = "No queued images to upload") }
+        val queue = _uiState.value.imageUploadQueue
+        val selected = queue.firstOrNull { it.status == UploadStatus.QUEUED || it.status == UploadStatus.FAILED }
+        if (selected == null && queue.isEmpty()) {
+            _uiState.update { it.copy(statusMessage = "No image selected") }
             return
         }
+        if (selected == null && queue.any { it.status == UploadStatus.UPLOADING }) {
+            _uiState.update { it.copy(statusMessage = "Image upload already in progress") }
+            return
+        }
+        if (selected == null && queue.any { it.status == UploadStatus.SUCCEEDED }) {
+            _uiState.update { it.copy(statusMessage = "Image already uploaded") }
+            return
+        }
+        if (selected == null) return
 
-        queue.forEach { item ->
-            _uiState.update { state ->
-                state.copy(imageUploadQueue = state.imageUploadQueue.map { queued ->
-                    if (queued.id == item.id) queued.copy(status = UploadStatus.UPLOADING, progressPercent = 0, errorMessage = null)
-                    else queued
-                })
+        _uiState.update { state ->
+            state.copy(imageUploadQueue = state.imageUploadQueue.map { queued ->
+                if (queued.id == selected.id) queued.copy(status = UploadStatus.UPLOADING, progressPercent = 0, errorMessage = null)
+                else queued
+            })
+        }
+
+        viewModelScope.launch {
+            val snapshot = _uiState.value.imageUploadQueue.firstOrNull { it.id == selected.id } ?: return@launch
+            val token = _uiState.value.auth.accessToken
+            val result = api.uploadImage(snapshot.localUri, snapshot.altText, _uiState.value.settings, token) { percent ->
+                _uiState.update { state ->
+                    state.copy(imageUploadQueue = state.imageUploadQueue.map { queued ->
+                        if (queued.id == selected.id) queued.copy(progressPercent = percent, status = UploadStatus.UPLOADING) else queued
+                    })
+                }
             }
 
-            viewModelScope.launch {
-                val snapshot = _uiState.value.imageUploadQueue.firstOrNull { it.id == item.id } ?: return@launch
-                val token = _uiState.value.auth.accessToken
-                val result = api.uploadImage(snapshot.localUri, snapshot.altText, _uiState.value.settings, token) { percent ->
-                    _uiState.update { state ->
-                        state.copy(imageUploadQueue = state.imageUploadQueue.map { queued ->
-                            if (queued.id == item.id) queued.copy(progressPercent = percent, status = UploadStatus.UPLOADING) else queued
-                        })
+            _uiState.update { state ->
+                result.fold(
+                    onSuccess = { url ->
+                        state.copy(
+                            imageUploadQueue = state.imageUploadQueue.map { queued ->
+                                if (queued.id == selected.id) queued.copy(status = UploadStatus.SUCCEEDED, progressPercent = 100, uploadedUrl = url, errorMessage = null)
+                                else queued
+                            },
+                            statusMessage = "Uploaded image"
+                        )
+                    },
+                    onFailure = { err ->
+                        state.copy(
+                            imageUploadQueue = state.imageUploadQueue.map { queued ->
+                                if (queued.id == selected.id) queued.copy(status = UploadStatus.FAILED, progressPercent = 0, uploadedUrl = null, errorMessage = err.message ?: "Upload failed")
+                                else queued
+                            },
+                            statusMessage = "Image upload failed"
+                        )
                     }
-                }
-
-                _uiState.update { state ->
-                    result.fold(
-                        onSuccess = { url ->
-                            state.copy(
-                                imageUploadQueue = state.imageUploadQueue.map { queued ->
-                                    if (queued.id == item.id) queued.copy(status = UploadStatus.SUCCEEDED, progressPercent = 100, uploadedUrl = url, errorMessage = null)
-                                    else queued
-                                },
-                                statusMessage = "Uploaded image"
-                            )
-                        },
-                        onFailure = { err ->
-                            state.copy(
-                                imageUploadQueue = state.imageUploadQueue.map { queued ->
-                                    if (queued.id == item.id) queued.copy(status = UploadStatus.FAILED, progressPercent = 0, uploadedUrl = null, errorMessage = err.message ?: "Upload failed")
-                                    else queued
-                                },
-                                statusMessage = "One or more image uploads failed"
-                            )
-                        }
-                    )
-                }
+                )
             }
         }
     }
 
     fun insertUploadedImagesMarkdown() {
-        val uploaded = _uiState.value.imageUploadQueue.filter { it.status == UploadStatus.SUCCEEDED && !it.uploadedUrl.isNullOrBlank() }
-        if (uploaded.isEmpty()) {
-            _uiState.update { it.copy(statusMessage = "No uploaded images available to insert") }
+        val uploaded = _uiState.value.imageUploadQueue.lastOrNull { it.status == UploadStatus.SUCCEEDED && !it.uploadedUrl.isNullOrBlank() }
+        if (uploaded == null) {
+            _uiState.update { it.copy(statusMessage = "No uploaded image available to insert") }
             return
         }
-        val markdownBlock = uploaded.joinToString("\n") { item -> "![${item.altText.ifBlank { "image" }}](${item.uploadedUrl})" }
+        val markdownBlock = "![${uploaded.altText.ifBlank { "image" }}](${uploaded.uploadedUrl})"
         updateDraft { copy(body = if (body.isBlank()) markdownBlock else "$body\n$markdownBlock") }
-        _uiState.update { it.copy(statusMessage = "Inserted ${uploaded.size} uploaded image(s)") }
+        _uiState.update { it.copy(statusMessage = "Inserted uploaded image") }
     }
 
     fun saveDraft() {
