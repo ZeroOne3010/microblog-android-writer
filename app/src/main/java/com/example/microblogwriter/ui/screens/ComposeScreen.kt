@@ -257,11 +257,6 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
 
         Text("Words: ${uiState.markdownWordCount} • Reading time: ${uiState.readingTimeMinutes} min")
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = vm::insertMoreTag) { Text("Insert <!--more-->") }
-            TextButton(onClick = vm::togglePreview) { Text(if (uiState.previewMode) "Edit" else "Preview") }
-        }
-
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(12.dp),
