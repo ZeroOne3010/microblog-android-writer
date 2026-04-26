@@ -63,6 +63,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     init {
         refreshDrafts()
         refreshPublishedPosts()
+        refreshBlogCategories()
     }
 
     fun beginSignIn(me: String, openUrl: (String) -> Unit) {
@@ -153,6 +154,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 )
             }
+            if (result.isSuccess) {
+                refreshBlogCategories()
+            }
         }
     }
 
@@ -162,6 +166,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update {
             it.copy(
                 auth = AuthState(),
+                blogCategories = emptyList(),
+                blogCategoriesLoading = false,
                 publishedPosts = emptyList(),
                 publishedPostsError = null,
                 imageUploadQueue = emptyList(),
@@ -431,6 +437,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         }
+    }
+
+    fun refreshBlogCategories() {
+        if (!_uiState.value.auth.isAuthenticated) {
+            _uiState.update { it.copy(blogCategories = emptyList(), blogCategoriesLoading = false) }
+            return
+        }
+        _uiState.update { it.copy(blogCategoriesLoading = true) }
+        viewModelScope.launch {
+            val result = api.fetchCategories(_uiState.value.settings, _uiState.value.auth.accessToken)
+            _uiState.update { current ->
+                result.fold(
+                    onSuccess = { categories -> current.copy(blogCategories = categories, blogCategoriesLoading = false) },
+                    onFailure = { err ->
+                        current.copy(
+                            blogCategoriesLoading = false,
+                            statusMessage = "Could not load categories: ${err.message}"
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    fun toggleCategory(category: String) {
+        val current = _uiState.value.selectedDraft.categories
+        val next = if (current.contains(category)) current - category else current + category
+        updateDraft { copy(categories = next.distinct()) }
     }
 
     fun importPublishedPost(post: Draft) {

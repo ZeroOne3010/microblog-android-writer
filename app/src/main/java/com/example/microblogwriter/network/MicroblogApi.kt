@@ -108,6 +108,20 @@ class MicroblogApi(private val context: Context) {
         }
     }
 
+    suspend fun fetchCategories(settings: SettingsState, accessToken: String): Result<List<String>> = withContext(Dispatchers.IO) {
+        runCatching {
+            require(accessToken.isNotBlank()) { "Micro.blog access token is required" }
+            val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub?q=config"
+            val root = json.parseToJsonElement(getRequest(endpoint, accessToken).body).jsonObject
+            val direct = parseCategoryArray(root["categories"] ?: root["category"])
+            val destinations = root["destination"]?.jsonArray.orEmpty().flatMap { destination ->
+                val destinationObject = destination.jsonObject
+                parseCategoryArray(destinationObject["categories"] ?: destinationObject["category"])
+            }
+            (direct + destinations).distinct().sorted()
+        }
+    }
+
     private fun resolveMediaEndpoint(settings: SettingsState, accessToken: String): String {
         if (settings.microblogMediaEndpoint.isNotBlank()) {
             return settings.microblogMediaEndpoint
@@ -243,6 +257,15 @@ class MicroblogApi(private val context: Context) {
         return root["url"]?.jsonPrimitive?.contentOrNull
             ?: root["path"]?.jsonPrimitive?.contentOrNull
             ?: root["location"]?.jsonPrimitive?.contentOrNull
+    }
+
+    private fun parseCategoryArray(element: kotlinx.serialization.json.JsonElement?): List<String> {
+        val array = element?.jsonArray ?: return emptyList()
+        return array.mapNotNull { value ->
+            value.jsonPrimitive.contentOrNull
+                ?: value.jsonObject["name"]?.jsonPrimitive?.contentOrNull
+                ?: value.jsonObject["uid"]?.jsonPrimitive?.contentOrNull
+        }.filter { it.isNotBlank() }
     }
 
     private data class HttpResponse(

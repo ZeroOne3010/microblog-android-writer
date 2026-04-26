@@ -54,6 +54,8 @@ data class AppUiState(
     val drafts: List<Draft> = emptyList(),
     val selectedDraft: Draft = Draft(),
     val categoryHistory: List<String> = emptyList(),
+    val blogCategories: List<String> = emptyList(),
+    val blogCategoriesLoading: Boolean = false,
     val publishedPosts: List<Draft> = emptyList(),
     val publishedPostsLoading: Boolean = false,
     val publishedPostsError: String? = null,
