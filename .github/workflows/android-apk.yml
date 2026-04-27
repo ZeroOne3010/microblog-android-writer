@@ -33,17 +33,17 @@ jobs:
       - name: Build debug APK
         run: ./gradlew --no-daemon assembleDebug
 
-      - name: Build release APK (unsigned unless signing configured)
-        run: ./gradlew --no-daemon assembleRelease
-
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: microblog-writer-debug-apk
           path: app/build/outputs/apk/debug/*.apk
 
-      - name: Upload release APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: microblog-writer-release-apk
-          path: app/build/outputs/apk/release/*.apk
+      # - name: Build release APK (unsigned unless signing configured)
+      #   run: ./gradlew --no-daemon assembleRelease
+      #
+      # - name: Upload release APK artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: microblog-writer-release-apk
+      #     path: app/build/outputs/apk/release/*.apk
