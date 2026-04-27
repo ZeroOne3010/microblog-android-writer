@@ -47,6 +47,23 @@ android {
     }
 }
 
+
+val generatedIconResDir = layout.buildDirectory.dir("generated/res/icon")
+
+val prepareLauncherIcon by tasks.registering(Copy::class) {
+    from(rootProject.layout.projectDirectory.file("yablogwriter.png"))
+    into(generatedIconResDir.map { it.dir("mipmap") })
+    rename { "ic_launcher.png" }
+}
+
+android.sourceSets.named("main") {
+    res.srcDir(generatedIconResDir)
+}
+
+tasks.named("preBuild") {
+    dependsOn(prepareLauncherIcon)
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2025.01.01")
     implementation(composeBom)
