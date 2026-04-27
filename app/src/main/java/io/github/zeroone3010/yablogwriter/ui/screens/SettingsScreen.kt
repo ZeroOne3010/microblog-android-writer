@@ -10,12 +10,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.zeroone3010.yablogwriter.domain.AppTheme
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
+import io.github.zeroone3010.yablogwriter.domain.TimestampFormat
 import io.github.zeroone3010.yablogwriter.ui.AppViewModel
 
 @Composable
@@ -61,78 +64,116 @@ fun SettingsScreen(
                 .padding(top = 12.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            AccountSection(
-                authState = uiState.auth,
-                defaultMe = uiState.auth.me.ifBlank { "https://micro.blog" },
-                onStartSignIn = onStartSignIn,
-                onLogout = onLogout,
-                autofocus = focusAccountSection
-            )
+            SettingsSection("Account") {
+                AccountSection(
+                    authState = uiState.auth,
+                    defaultMe = uiState.auth.me.ifBlank { "https://micro.blog" },
+                    onStartSignIn = onStartSignIn,
+                    onLogout = onLogout,
+                    autofocus = focusAccountSection
+                )
+            }
 
-            Text("AI settings")
-            RowSwitch("Enable AI review", settings.aiEnabled) { settings = settings.copy(aiEnabled = it) }
-            OutlinedTextField(
-                value = settings.aiProviderBaseUrl,
-                onValueChange = { settings = settings.copy(aiProviderBaseUrl = it) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("AI provider base URL") }
-            )
-            OutlinedTextField(
-                value = settings.aiApiKey,
-                onValueChange = { settings = settings.copy(aiApiKey = it) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Provider API key") }
-            )
-            OutlinedTextField(
-                value = settings.aiModel,
-                onValueChange = { settings = settings.copy(aiModel = it) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Model name") }
-            )
-            OutlinedTextField(
-                value = settings.aiPromptTemplate,
-                onValueChange = { settings = settings.copy(aiPromptTemplate = it) },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 4,
-                label = { Text("Prompt template ({title}, {contents})") }
-            )
-            Text("Disclosure: Running AI review sends the current draft title/body to the configured AI provider.")
+            SettingsSection("AI settings") {
+                RowSwitch("Enable AI review", settings.aiEnabled) { settings = settings.copy(aiEnabled = it) }
+                OutlinedTextField(
+                    value = settings.aiProviderBaseUrl,
+                    onValueChange = { settings = settings.copy(aiProviderBaseUrl = it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("AI provider base URL") }
+                )
+                OutlinedTextField(
+                    value = settings.aiApiKey,
+                    onValueChange = { settings = settings.copy(aiApiKey = it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Provider API key") }
+                )
+                OutlinedTextField(
+                    value = settings.aiModel,
+                    onValueChange = { settings = settings.copy(aiModel = it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Model name") }
+                )
+                OutlinedTextField(
+                    value = settings.aiPromptTemplate,
+                    onValueChange = { settings = settings.copy(aiPromptTemplate = it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 4,
+                    label = { Text("Prompt template ({title}, {contents})") }
+                )
+                Text("Disclosure: Running AI review sends the current draft title/body to the configured AI provider.")
+            }
 
-            Text("Micro.blog")
-            OutlinedTextField(
-                value = settings.microblogApiBaseUrl,
-                onValueChange = { settings = settings.copy(microblogApiBaseUrl = it) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Micropub base URL") }
-            )
-            OutlinedTextField(
-                value = settings.microblogMediaEndpoint,
-                onValueChange = { settings = settings.copy(microblogMediaEndpoint = it) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Media endpoint (optional override)") }
-            )
+            SettingsSection("Micro.blog") {
+                OutlinedTextField(
+                    value = settings.microblogApiBaseUrl,
+                    onValueChange = { settings = settings.copy(microblogApiBaseUrl = it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Micropub base URL") }
+                )
+                OutlinedTextField(
+                    value = settings.microblogMediaEndpoint,
+                    onValueChange = { settings = settings.copy(microblogMediaEndpoint = it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Media endpoint (optional override)") }
+                )
+            }
 
-            Text("Theme")
-            ThemeRadioOption(
-                label = "System default",
-                selected = settings.theme == AppTheme.SYSTEM,
-                onClick = { settings = settings.copy(theme = AppTheme.SYSTEM) }
-            )
-            ThemeRadioOption(
-                label = "Light mode",
-                selected = settings.theme == AppTheme.LIGHT,
-                onClick = { settings = settings.copy(theme = AppTheme.LIGHT) }
-            )
-            ThemeRadioOption(
-                label = "Dark mode",
-                selected = settings.theme == AppTheme.DARK,
-                onClick = { settings = settings.copy(theme = AppTheme.DARK) }
-            )
+            SettingsSection("Appearance & behavior") {
+                ThemeRadioOption(
+                    label = "System default",
+                    selected = settings.theme == AppTheme.SYSTEM,
+                    onClick = { settings = settings.copy(theme = AppTheme.SYSTEM) }
+                )
+                ThemeRadioOption(
+                    label = "Light mode",
+                    selected = settings.theme == AppTheme.LIGHT,
+                    onClick = { settings = settings.copy(theme = AppTheme.LIGHT) }
+                )
+                ThemeRadioOption(
+                    label = "Dark mode",
+                    selected = settings.theme == AppTheme.DARK,
+                    onClick = { settings = settings.copy(theme = AppTheme.DARK) }
+                )
+                RowSwitch("Category reminder", settings.categoryReminderEnabled) {
+                    settings = settings.copy(categoryReminderEnabled = it)
+                }
+                Text("Timestamp format")
+                ThemeRadioOption(
+                    label = "YYYY-MM-DD HH:MM",
+                    selected = settings.timestampFormat == TimestampFormat.ISO_24H,
+                    onClick = { settings = settings.copy(timestampFormat = TimestampFormat.ISO_24H) }
+                )
+                ThemeRadioOption(
+                    label = "D.M.Y HH:MM",
+                    selected = settings.timestampFormat == TimestampFormat.DMY_24H,
+                    onClick = { settings = settings.copy(timestampFormat = TimestampFormat.DMY_24H) }
+                )
+                ThemeRadioOption(
+                    label = "M/D/Y h:MM a",
+                    selected = settings.timestampFormat == TimestampFormat.MDY_12H,
+                    onClick = { settings = settings.copy(timestampFormat = TimestampFormat.MDY_12H) }
+                )
+            }
 
-            RowSwitch("Category reminder", settings.categoryReminderEnabled) {
-                settings = settings.copy(categoryReminderEnabled = it)
+            SettingsSection("Draft storage") {
+                Text("Draft markdown files are stored in /storage/emulated/0/Android/media/<package>/yablogwriter-drafts when available.")
             }
         }
+    }
+}
+
+@Composable
+private fun SettingsSection(title: String, content: @Composable Column.() -> Unit) {
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                content()
+            }
+        )
     }
 }
 

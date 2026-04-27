@@ -18,6 +18,7 @@ data class Draft(
 enum class DraftStatus { DRAFT, PUBLISHED, PENDING_UPLOAD, PENDING_PUBLISH }
 
 enum class AppTheme { SYSTEM, LIGHT, DARK }
+enum class TimestampFormat { ISO_24H, DMY_24H, MDY_12H }
 
 data class SettingsState(
     val aiEnabled: Boolean = true,
@@ -28,7 +29,8 @@ data class SettingsState(
     val microblogApiBaseUrl: String = "https://micro.blog",
     val microblogMediaEndpoint: String = "",
     val theme: AppTheme = AppTheme.SYSTEM,
-    val categoryReminderEnabled: Boolean = true
+    val categoryReminderEnabled: Boolean = true,
+    val timestampFormat: TimestampFormat = TimestampFormat.ISO_24H
 )
 
 data class LinkDialogState(

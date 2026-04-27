@@ -8,7 +8,14 @@ import java.time.Instant
 import java.util.Locale
 
 class MarkdownDraftRepository(private val context: Context) {
-    private val draftsDir: File by lazy { File(context.filesDir, "drafts").apply { mkdirs() } }
+    private val draftsDir: File by lazy {
+        val internalDir = File(context.filesDir, "drafts").apply { mkdirs() }
+        val preferredExternalDir = context.externalMediaDirs
+            .firstOrNull()
+            ?.let { File(it, "yablogwriter-drafts") }
+            ?.takeIf { dir -> (dir.exists() || dir.mkdirs()) && dir.canWrite() }
+        preferredExternalDir ?: internalDir
+    }
 
     fun listDrafts(): List<Draft> = draftsDir.listFiles()
         ?.filter { it.extension == "md" }

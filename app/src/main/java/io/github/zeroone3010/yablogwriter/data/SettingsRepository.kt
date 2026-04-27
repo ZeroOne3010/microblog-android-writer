@@ -5,6 +5,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import io.github.zeroone3010.yablogwriter.domain.AppTheme
 import io.github.zeroone3010.yablogwriter.domain.SettingsState
+import io.github.zeroone3010.yablogwriter.domain.TimestampFormat
 
 class SettingsRepository(context: Context) {
     private val prefs = EncryptedSharedPreferences.create(
@@ -24,7 +25,10 @@ class SettingsRepository(context: Context) {
         microblogApiBaseUrl = prefs.getString("microblog_api_base_url", SettingsState().microblogApiBaseUrl) ?: SettingsState().microblogApiBaseUrl,
         microblogMediaEndpoint = prefs.getString("microblog_media_endpoint", "") ?: "",
         theme = AppTheme.valueOf(prefs.getString("theme", AppTheme.SYSTEM.name) ?: AppTheme.SYSTEM.name),
-        categoryReminderEnabled = prefs.getBoolean("category_reminder", true)
+        categoryReminderEnabled = prefs.getBoolean("category_reminder", true),
+        timestampFormat = TimestampFormat.valueOf(
+            prefs.getString("timestamp_format", TimestampFormat.ISO_24H.name) ?: TimestampFormat.ISO_24H.name
+        )
     )
 
     fun save(settings: SettingsState) {
@@ -38,6 +42,7 @@ class SettingsRepository(context: Context) {
             .putString("microblog_media_endpoint", settings.microblogMediaEndpoint)
             .putString("theme", settings.theme.name)
             .putBoolean("category_reminder", settings.categoryReminderEnabled)
+            .putString("timestamp_format", settings.timestampFormat.name)
             .apply()
     }
 }

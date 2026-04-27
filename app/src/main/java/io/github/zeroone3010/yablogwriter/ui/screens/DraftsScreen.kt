@@ -16,6 +16,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,8 +28,14 @@ import androidx.compose.ui.unit.dp
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.Draft
 import io.github.zeroone3010.yablogwriter.domain.DraftStatus
+import io.github.zeroone3010.yablogwriter.domain.TimestampFormat
 import io.github.zeroone3010.yablogwriter.ui.AppViewModel
 import io.github.zeroone3010.yablogwriter.ui.theme.destructiveButtonColors
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
 
 @Composable
 fun DraftsScreen(
@@ -70,7 +78,13 @@ fun DraftsScreen(
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
-                Text("Local posts")
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Local posts", style = MaterialTheme.typography.titleMedium)
+                    HorizontalDivider()
+                    if (drafts.isEmpty()) {
+                        Text("No local posts.")
+                    }
+                }
             }
             items(drafts, key = { it.id }) { draft ->
                 Row(
@@ -85,8 +99,8 @@ fun DraftsScreen(
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(draft.title.ifBlank { "Untitled post" })
-                        Text("Updated: ${draft.updated}")
-                        Text("Categories: ${draft.categories.joinToString()}")
+                        Text("Updated: ${formatTimestamp(draft.updated, uiState.settings.timestampFormat)}")
+                        Text("Categories: ${draft.categories.joinToString().ifBlank { "(none)" }}")
                         Text("Status: ${draft.status}")
                         Text("Label: ${draftBadgeLabel(draft)}")
                     }
@@ -105,7 +119,13 @@ fun DraftsScreen(
             }
 
             item {
-                Text("Published posts")
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Published posts", style = MaterialTheme.typography.titleMedium)
+                    HorizontalDivider()
+                    if (publishedPosts.isEmpty()) {
+                        Text("No published posts.")
+                    }
+                }
             }
             items(publishedPosts, key = { it.postId ?: it.id }) { post ->
                 Card(modifier = Modifier.fillMaxWidth()) {
@@ -161,4 +181,15 @@ private fun draftBadgeLabel(draft: Draft): String = when {
 private fun publishedBadgeLabel(post: Draft): String = when {
     post.postId.isNullOrBlank() -> "Published (No ID)"
     else -> "Published Remote"
+}
+
+private fun formatTimestamp(instant: Instant, timestampFormat: TimestampFormat): String {
+    val zoned = instant.atZone(ZoneId.systemDefault()).withSecond(0).withNano(0)
+    return when (timestampFormat) {
+        TimestampFormat.ISO_24H -> zoned.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+        TimestampFormat.DMY_24H -> zoned.format(DateTimeFormatter.ofPattern("d.M.yyyy HH:mm"))
+        TimestampFormat.MDY_12H -> zoned.format(
+            DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT, FormatStyle.SHORT).withLocale(Locale.US)
+        )
+    }
 }
