@@ -498,6 +498,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(settings = settings, statusMessage = "Settings saved") }
     }
 
+    fun clearStatusMessage() {
+        _uiState.update { it.copy(statusMessage = null) }
+    }
+
     private fun updateDraft(update: Draft.() -> Draft) {
         val updated = _uiState.value.selectedDraft.update().copy(status = DraftStatus.DRAFT)
         _uiState.update {

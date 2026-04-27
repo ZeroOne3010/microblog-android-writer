@@ -126,6 +126,11 @@ fun MicroblogWriterApp(
             }
         }
     }
+    LaunchedEffect(uiState.statusMessage) {
+        val message = uiState.statusMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message = message, withDismissAction = true)
+        appViewModel.clearStatusMessage()
+    }
 
     val items = listOf(
         NavItem(ROUTE_DRAFTS, "Posts") { Icon(Icons.AutoMirrored.Filled.List, null) },
