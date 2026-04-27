@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 import io.github.zeroone3010.yablogwriter.domain.AppTheme
 
 private val AccentOrange = Color(0xFFE79254)
+private val LogoDark = Color(0xFF192333)
 
 private val LightColors = lightColorScheme(
     primary = AccentOrange,
@@ -19,7 +20,9 @@ private val LightColors = lightColorScheme(
 private val DarkColors = darkColorScheme(
     primary = AccentOrange,
     secondary = AccentOrange,
-    tertiary = AccentOrange
+    tertiary = AccentOrange,
+    background = LogoDark,
+    surface = LogoDark
 )
 
 @Composable
