@@ -148,6 +148,9 @@ fun MicroblogWriterApp(
                         NavigationBarItem(
                             selected = destination?.hierarchy?.any { it.route?.startsWith(item.route) == true } == true,
                             onClick = {
+                                if (item.route == ROUTE_DRAFTS && destination?.route == ROUTE_COMPOSE) {
+                                    appViewModel.saveDraft()
+                                }
                                 navController.navigate(item.route) {
                                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                     launchSingleTop = true

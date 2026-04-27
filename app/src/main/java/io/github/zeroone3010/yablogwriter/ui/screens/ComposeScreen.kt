@@ -301,12 +301,17 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             }
         }
 
+        val aiReviewAvailable = uiState.settings.aiEnabled && uiState.settings.aiApiKey.isNotBlank()
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = vm::saveDraft) { Text("Save Post") }
-            TextButton(onClick = vm::runAiReview) { Text("AI Review") }
+            if (aiReviewAvailable) {
+                TextButton(onClick = vm::runAiReview) { Text("AI Review") }
+            }
             Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated) { Text("Publish") }
         }
-        Text("AI disclosure: When you tap AI Review, this draft content is sent to your configured provider.")
+        if (aiReviewAvailable) {
+            Text("AI disclosure: When you tap AI Review, this draft content is sent to your configured provider.")
+        }
 
         if (uiState.aiReviewOutput.isNotBlank()) {
             Text("AI review (separate suggestions, never auto-applied):")

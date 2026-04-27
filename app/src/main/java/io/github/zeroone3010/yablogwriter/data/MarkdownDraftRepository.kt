@@ -8,7 +8,17 @@ import java.time.Instant
 import java.util.Locale
 
 class MarkdownDraftRepository(private val context: Context) {
-    private val draftsDir: File by lazy { File(context.filesDir, "drafts").apply { mkdirs() } }
+    private val legacyDraftsDir: File by lazy { File(context.filesDir, "drafts") }
+    private val draftsDir: File by lazy {
+        val persistentDir = context.externalMediaDirs
+            .firstOrNull()
+            ?.let { File(it, "yablogwriter-drafts") }
+        (persistentDir ?: File(context.filesDir, "drafts")).apply { mkdirs() }
+    }
+
+    init {
+        migrateLegacyDraftsIfNeeded()
+    }
 
     fun listDrafts(): List<Draft> = draftsDir.listFiles()
         ?.filter { it.extension == "md" }
@@ -138,4 +148,15 @@ class MarkdownDraftRepository(private val context: Context) {
         .lowercase(Locale.US)
         .replace(Regex("[^a-z0-9]+"), "-")
         .trim('-')
+
+    private fun migrateLegacyDraftsIfNeeded() {
+        if (!legacyDraftsDir.exists() || legacyDraftsDir.absolutePath == draftsDir.absolutePath) return
+        val legacyFiles = legacyDraftsDir.listFiles()?.filter { it.extension == "md" }.orEmpty()
+        legacyFiles.forEach { legacy ->
+            val destination = File(draftsDir, legacy.name)
+            if (!destination.exists()) {
+                legacy.copyTo(destination, overwrite = false)
+            }
+        }
+    }
 }
