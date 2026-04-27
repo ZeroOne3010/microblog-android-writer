@@ -319,8 +319,6 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                 label = { Text("Suggestions") }
             )
         }
-
-        uiState.statusMessage?.let { Text(it) }
     }
 }
 

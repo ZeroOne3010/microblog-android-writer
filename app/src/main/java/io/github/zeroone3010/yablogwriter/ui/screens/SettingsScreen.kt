@@ -2,13 +2,16 @@ package io.github.zeroone3010.yablogwriter.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -18,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.zeroone3010.yablogwriter.domain.AppTheme
@@ -109,18 +113,25 @@ fun SettingsScreen(
             )
 
             Text("Theme")
-            RowSwitch("System default", settings.theme == AppTheme.SYSTEM) {
-                settings = settings.copy(theme = if (it) AppTheme.SYSTEM else AppTheme.LIGHT)
-            }
-            RowSwitch("Dark mode", settings.theme == AppTheme.DARK) {
-                settings = settings.copy(theme = if (it) AppTheme.DARK else AppTheme.LIGHT)
-            }
+            ThemeRadioOption(
+                label = "System default",
+                selected = settings.theme == AppTheme.SYSTEM,
+                onClick = { settings = settings.copy(theme = AppTheme.SYSTEM) }
+            )
+            ThemeRadioOption(
+                label = "Light mode",
+                selected = settings.theme == AppTheme.LIGHT,
+                onClick = { settings = settings.copy(theme = AppTheme.LIGHT) }
+            )
+            ThemeRadioOption(
+                label = "Dark mode",
+                selected = settings.theme == AppTheme.DARK,
+                onClick = { settings = settings.copy(theme = AppTheme.DARK) }
+            )
 
             RowSwitch("Category reminder", settings.categoryReminderEnabled) {
                 settings = settings.copy(categoryReminderEnabled = it)
             }
-
-            uiState.statusMessage?.let { Text(it) }
         }
     }
 }
@@ -130,5 +141,26 @@ private fun RowSwitch(label: String, checked: Boolean, onCheckedChange: (Boolean
     androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
         Text(label)
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun ThemeRadioOption(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton
+            ),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label)
+        RadioButton(selected = selected, onClick = onClick)
     }
 }
