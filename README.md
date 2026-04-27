@@ -1,39 +1,21 @@
-# Micro.blog Android Writer
+# Yet Another Blog Writer (Android)
 
-Writing-first Android client for Micro.blog users who want local Markdown drafting, visible categories, inline image insertion, AI review, and direct publishing.
+Yet Another Blog Writer is an Android app for Micro.blog writers who prefer to draft on their phone without giving up a clean writing flow.
 
-## MVP features in this repository
+The app is built around a simple idea: write in Markdown first, keep drafts locally, and publish when your post is ready. You can add categories as you write, insert images inline, and drop in a `<!--more-->` break without digging through menus. If you like an extra review pass before publishing, the app can run an optional AI review step using your own API key and prompt.
 
-- Local-first Markdown drafts saved as `.md` files with YAML front matter
-- Compose screen with categories always visible
-- Insert `<!--more-->` from a prominent action
-- Inline image Markdown insertion flow with alt text field
-- Explicit AI review step (user-provided API key + configurable prompt template)
-- Publish action wired to Micro.blog Micropub API (Bearer token)
-- Drafts list with search + delete
-- Settings for AI and theme behavior
-- Light/dark support via Material 3 DayNight theme
+Publishing is done through Micro.blog's Micropub support. Configure your Micropub base URL and access token in Settings, and the app handles publishing from there.
 
-## Local build
+## What the app feels like to use
+
+- A focused compose experience designed for long-form Markdown writing
+- Local draft storage so your writing starts on-device
+- Quick controls for common blog formatting actions
+- Built-in publishing flow for Micro.blog
+- Optional AI-assisted review before you hit publish
+
+## Build locally
 
 ```bash
 ./gradlew assembleDebug
 ```
-
-## Authentication and API integration
-
-`AiReviewClient` is still modular and replaceable. `MicroblogApi` now uses Micropub with Bearer auth:
-
-- `app/src/main/java/com/example/microblogwriter/ai/AiReviewClient.kt`
-
-To publish/upload, set these in **Settings**:
-
-- Micropub base URL (defaults to `https://micro.blog`)
-- Access token (Bearer)
-- Optional media endpoint override (if omitted, app calls `q=config` to discover it)
-
-## GitHub Actions APK build
-
-On every push to `main`, CI builds APK artifacts and uploads them.
-
-If release signing secrets are absent, workflow still uploads debug APK and documents this fallback in logs.
