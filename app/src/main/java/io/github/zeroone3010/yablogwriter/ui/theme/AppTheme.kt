@@ -5,7 +5,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import io.github.zeroone3010.yablogwriter.domain.AppTheme
+
+private val AccentOrange = Color(0xFFE79254)
+private val LogoDark = Color(0xFF192333)
+
+private val LightColors = lightColorScheme(
+    primary = AccentOrange,
+    secondary = AccentOrange,
+    tertiary = AccentOrange
+)
+
+private val DarkColors = darkColorScheme(
+    primary = AccentOrange,
+    secondary = AccentOrange,
+    tertiary = AccentOrange,
+    background = LogoDark,
+    surface = LogoDark
+)
 
 @Composable
 fun MicroblogWriterTheme(theme: AppTheme, content: @Composable () -> Unit) {
@@ -16,7 +34,7 @@ fun MicroblogWriterTheme(theme: AppTheme, content: @Composable () -> Unit) {
     }
 
     MaterialTheme(
-        colorScheme = if (useDarkTheme) darkColorScheme() else lightColorScheme(),
+        colorScheme = if (useDarkTheme) DarkColors else LightColors,
         content = content
     )
 }
