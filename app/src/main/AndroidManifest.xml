@@ -6,7 +6,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="Micro.blog Writer"
+        android:label="Yet Another Blog Writer"
         android:supportsRtl="true"
         android:theme="@style/Theme.MicroblogWriter">
         <provider
