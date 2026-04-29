@@ -3,7 +3,6 @@ package io.github.zeroone3010.yablogwriter.ui.screens
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -11,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -91,7 +91,6 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text("Writing-first compose")
         if (!uiState.auth.isAuthenticated) {
             Text("Sign in is required for publish/upload actions.")
             OutlinedButton(onClick = onRequireAuth) { Text("Go to account settings") }
@@ -141,18 +140,19 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             Text(uiState.selectedDraft.body)
         } else {
             Surface(modifier = Modifier.fillMaxWidth()) {
-                Row(
+                val formattingButtonModifier = Modifier.heightIn(min = 36.dp)
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(onClick = {
                         val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "# ")
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
                         vm.editBody(mutation.text)
-                    }) { Text("H1") }
+                    }, modifier = formattingButtonModifier) { Text("H1") }
                     OutlinedButton(onClick = {
                         val auto = autoLinkInsertionRequest(editorValue.text, editorValue.selection.start, editorValue.selection.end, clipboardManager.getText()?.text)
                         if (auto != null) {
@@ -167,7 +167,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                                 clipboardText = clipboardManager.getText()?.text
                             )
                         }
-                    }) { Text("Link") }
+                    }, modifier = formattingButtonModifier) { Text("Link") }
                     OutlinedButton(onClick = {
                         val auto = autoLinkInsertionRequest(editorValue.text, editorValue.selection.start, editorValue.selection.end, clipboardManager.getText()?.text)
                         if (auto != null) {
@@ -183,7 +183,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                                 asWebmention = true
                             )
                         }
-                    }) { Text("Webmention") }
+                    }, modifier = formattingButtonModifier) { Text("Webmention") }
                     OutlinedButton(onClick = {
                         val mutation = insertInlineAtSelection(
                             editorValue.text,
@@ -193,7 +193,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                         )
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart))
                         vm.editBody(mutation.text)
-                    }) { Text("Image") }
+                    }, modifier = formattingButtonModifier) { Text("Image") }
                     OutlinedButton(onClick = {
                         val match = findMarkdownImageAtSelection(
                             editorValue.text,
@@ -206,17 +206,17 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                         } else {
                             vm.editBody(editorValue.text)
                         }
-                    }) { Text("Edit image alt") }
+                    }, modifier = formattingButtonModifier) { Text("Edit image alt") }
                     OutlinedButton(onClick = {
                         val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "> ")
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
                         vm.editBody(mutation.text)
-                    }) { Text("Quote") }
+                    }, modifier = formattingButtonModifier) { Text("Quote") }
                     OutlinedButton(onClick = {
                         val mutation = wrapInCodeBlock(editorValue.text, editorValue.selection.start, editorValue.selection.end)
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
                         vm.editBody(mutation.text)
-                    }) { Text("Code") }
+                    }, modifier = formattingButtonModifier) { Text("Code") }
                     OutlinedButton(onClick = {
                         val originalText = editorValue.text
                         val strippedText = removeAllMoreTags(originalText)
@@ -237,7 +237,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                         )
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart))
                         vm.editBody(mutation.text)
-                    }) { Text("<!--more-->") }
+                    }, modifier = formattingButtonModifier) { Text("<!--more-->") }
                 }
             }
 
@@ -325,7 +325,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                 modifier = Modifier.padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Image upload (single file)")
+                Text("Image upload")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedButton(onClick = {
                         pickSinglePhoto.launch(
@@ -358,10 +358,6 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             }
             Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated) { Text("Publish") }
         }
-        if (aiReviewAvailable) {
-            Text("AI disclosure: When you tap AI Review, this draft content is sent to your configured provider.")
-        }
-
         if (uiState.aiReviewOutput.isNotBlank()) {
             Text("AI review (separate suggestions, never auto-applied):")
             OutlinedTextField(
