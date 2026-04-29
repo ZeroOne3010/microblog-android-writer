@@ -218,11 +218,22 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                         vm.editBody(mutation.text)
                     }) { Text("Code") }
                     OutlinedButton(onClick = {
+                        val originalText = editorValue.text
+                        val strippedText = removeAllMoreTags(originalText)
+                        val moreTag = "<!--more-->"
+                        val removedBeforeSelectionStart = Regex(Regex.escape(moreTag))
+                            .findAll(originalText.substring(0, editorValue.selection.start.coerceIn(0, originalText.length)))
+                            .count() * moreTag.length
+                        val removedBeforeSelectionEnd = Regex(Regex.escape(moreTag))
+                            .findAll(originalText.substring(0, editorValue.selection.end.coerceIn(0, originalText.length)))
+                            .count() * moreTag.length
+                        val rebasedSelectionStart = (editorValue.selection.start - removedBeforeSelectionStart).coerceIn(0, strippedText.length)
+                        val rebasedSelectionEnd = (editorValue.selection.end - removedBeforeSelectionEnd).coerceIn(0, strippedText.length)
                         val mutation = insertInlineAtSelection(
-                            removeAllMoreTags(editorValue.text),
-                            editorValue.selection.start,
-                            editorValue.selection.end,
-                            "<!--more-->"
+                            strippedText,
+                            rebasedSelectionStart,
+                            rebasedSelectionEnd,
+                            moreTag
                         )
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart))
                         vm.editBody(mutation.text)
