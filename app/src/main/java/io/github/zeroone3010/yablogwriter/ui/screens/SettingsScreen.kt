@@ -75,6 +75,60 @@ fun SettingsScreen(
                 )
             }
 
+            SettingsSection("Micro.blog") {
+                OutlinedTextField(
+                    value = settings.microblogApiBaseUrl,
+                    onValueChange = { settings = settings.copy(microblogApiBaseUrl = it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Micropub base URL") }
+                )
+                OutlinedTextField(
+                    value = settings.microblogMediaEndpoint,
+                    onValueChange = { settings = settings.copy(microblogMediaEndpoint = it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Media endpoint (optional override)") }
+                )
+            }
+
+            SettingsSection("Appearance") {
+                ThemeRadioOption(
+                    label = "System default",
+                    selected = settings.theme == AppTheme.SYSTEM,
+                    onClick = { settings = settings.copy(theme = AppTheme.SYSTEM) }
+                )
+                ThemeRadioOption(
+                    label = "Light mode",
+                    selected = settings.theme == AppTheme.LIGHT,
+                    onClick = { settings = settings.copy(theme = AppTheme.LIGHT) }
+                )
+                ThemeRadioOption(
+                    label = "Dark mode",
+                    selected = settings.theme == AppTheme.DARK,
+                    onClick = { settings = settings.copy(theme = AppTheme.DARK) }
+                )
+                RowSwitch("Category reminder", settings.categoryReminderEnabled) {
+                    settings = settings.copy(categoryReminderEnabled = it)
+                }
+            }
+
+            SettingsSection("Timestamp format") {
+                ThemeRadioOption(
+                    label = "YYYY-MM-DD HH:MM",
+                    selected = settings.timestampFormat == TimestampFormat.ISO_24H,
+                    onClick = { settings = settings.copy(timestampFormat = TimestampFormat.ISO_24H) }
+                )
+                ThemeRadioOption(
+                    label = "D.M.Y HH:MM",
+                    selected = settings.timestampFormat == TimestampFormat.DMY_24H,
+                    onClick = { settings = settings.copy(timestampFormat = TimestampFormat.DMY_24H) }
+                )
+                ThemeRadioOption(
+                    label = "M/D/Y h:MM a",
+                    selected = settings.timestampFormat == TimestampFormat.MDY_12H,
+                    onClick = { settings = settings.copy(timestampFormat = TimestampFormat.MDY_12H) }
+                )
+            }
+
             SettingsSection("AI settings") {
                 RowSwitch("Enable AI review", settings.aiEnabled) { settings = settings.copy(aiEnabled = it) }
                 OutlinedTextField(
@@ -105,60 +159,8 @@ fun SettingsScreen(
                 Text("Disclosure: Running AI review sends the current draft title/body to the configured AI provider.")
             }
 
-            SettingsSection("Micro.blog") {
-                OutlinedTextField(
-                    value = settings.microblogApiBaseUrl,
-                    onValueChange = { settings = settings.copy(microblogApiBaseUrl = it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Micropub base URL") }
-                )
-                OutlinedTextField(
-                    value = settings.microblogMediaEndpoint,
-                    onValueChange = { settings = settings.copy(microblogMediaEndpoint = it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Media endpoint (optional override)") }
-                )
-            }
-
-            SettingsSection("Appearance & behavior") {
-                ThemeRadioOption(
-                    label = "System default",
-                    selected = settings.theme == AppTheme.SYSTEM,
-                    onClick = { settings = settings.copy(theme = AppTheme.SYSTEM) }
-                )
-                ThemeRadioOption(
-                    label = "Light mode",
-                    selected = settings.theme == AppTheme.LIGHT,
-                    onClick = { settings = settings.copy(theme = AppTheme.LIGHT) }
-                )
-                ThemeRadioOption(
-                    label = "Dark mode",
-                    selected = settings.theme == AppTheme.DARK,
-                    onClick = { settings = settings.copy(theme = AppTheme.DARK) }
-                )
-                RowSwitch("Category reminder", settings.categoryReminderEnabled) {
-                    settings = settings.copy(categoryReminderEnabled = it)
-                }
-                Text("Timestamp format")
-                ThemeRadioOption(
-                    label = "YYYY-MM-DD HH:MM",
-                    selected = settings.timestampFormat == TimestampFormat.ISO_24H,
-                    onClick = { settings = settings.copy(timestampFormat = TimestampFormat.ISO_24H) }
-                )
-                ThemeRadioOption(
-                    label = "D.M.Y HH:MM",
-                    selected = settings.timestampFormat == TimestampFormat.DMY_24H,
-                    onClick = { settings = settings.copy(timestampFormat = TimestampFormat.DMY_24H) }
-                )
-                ThemeRadioOption(
-                    label = "M/D/Y h:MM a",
-                    selected = settings.timestampFormat == TimestampFormat.MDY_12H,
-                    onClick = { settings = settings.copy(timestampFormat = TimestampFormat.MDY_12H) }
-                )
-            }
-
             SettingsSection("Draft storage") {
-                Text("Draft markdown files are stored in /storage/emulated/0/Android/media/<package>/yablogwriter-drafts when available.")
+                Text("Draft markdown files are stored in /storage/emulated/0/Android/media/io.github.zeroone3010.yablogwriter when available.")
             }
         }
     }
