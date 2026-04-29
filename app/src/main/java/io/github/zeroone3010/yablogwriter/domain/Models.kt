@@ -37,7 +37,8 @@ data class LinkDialogState(
     val selectionStart: Int,
     val selectionEnd: Int,
     val selectedText: String,
-    val initialUrl: String
+    val initialUrl: String,
+    val asWebmention: Boolean = false
 )
 
 enum class UploadStatus { QUEUED, UPLOADING, SUCCEEDED, FAILED }

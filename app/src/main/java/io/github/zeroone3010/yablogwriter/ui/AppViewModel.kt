@@ -221,7 +221,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(previewMode = !it.previewMode) }
     }
 
-    fun requestLinkInsertion(body: String, selectionStart: Int, selectionEnd: Int, clipboardText: String?) {
+    fun requestLinkInsertion(body: String, selectionStart: Int, selectionEnd: Int, clipboardText: String?, asWebmention: Boolean = false) {
         val request = buildLinkInsertionRequest(body, selectionStart, selectionEnd, clipboardText)
         _uiState.update {
             it.copy(
@@ -229,7 +229,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     selectionStart = request.selectionStart,
                     selectionEnd = request.selectionEnd,
                     selectedText = request.selectedText,
-                    initialUrl = request.initialUrl
+                    initialUrl = request.initialUrl,
+                    asWebmention = asWebmention
                 )
             )
         }
@@ -240,7 +241,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun insertMoreTag() {
-        updateDraft { copy(body = if (body.endsWith("\n")) "$body<!--more-->" else "$body\n<!--more-->") }
+        updateDraft {
+            val withoutMore = body.replace("<!--more-->", "")
+            val suffix = if (withoutMore.endsWith("\n") || withoutMore.isBlank()) "" else "\n"
+            copy(body = "$withoutMore$suffix<!--more-->")
+        }
     }
 
     fun queueImages(localUris: List<String>) {
