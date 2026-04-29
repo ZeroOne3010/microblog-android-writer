@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
@@ -24,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.Draft
@@ -45,14 +45,14 @@ fun DraftsScreen(
     onRequireAuth: () -> Unit = {}
 ) {
     var query by remember { mutableStateOf("") }
-    var renamingDraft by remember { mutableStateOf<Draft?>(null) }
-    var renameValue by remember { mutableStateOf("") }
-    val drafts = uiState.drafts.filter {
+    val unpublishedDrafts = uiState.drafts.filter { it.status != DraftStatus.PUBLISHED }.filter {
         it.title.contains(query, ignoreCase = true) || it.body.contains(query, ignoreCase = true)
     }
-    val publishedPosts = uiState.publishedPosts.filter {
-        it.title.contains(query, ignoreCase = true) || it.body.contains(query, ignoreCase = true)
-    }
+    val localPublishedPosts = uiState.drafts.filter { it.status == DraftStatus.PUBLISHED && !it.postId.isNullOrBlank() }
+    val publishedPosts = (uiState.publishedPosts + localPublishedPosts)
+        .distinctBy { it.postId ?: it.id }
+        .filter { it.title.contains(query, ignoreCase = true) || it.body.contains(query, ignoreCase = true) }
+    val uriHandler = LocalUriHandler.current
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
@@ -79,14 +79,14 @@ fun DraftsScreen(
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Local posts", style = MaterialTheme.typography.titleMedium)
+                    Text("Unpublished posts", style = MaterialTheme.typography.titleMedium)
                     HorizontalDivider()
-                    if (drafts.isEmpty()) {
-                        Text("No local posts.")
+                    if (unpublishedDrafts.isEmpty()) {
+                        Text("No unpublished posts.")
                     }
                 }
             }
-            items(drafts, key = { it.id }) { draft ->
+            items(unpublishedDrafts, key = { it.id }) { draft ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -104,17 +104,10 @@ fun DraftsScreen(
                         Text("Status: ${draft.status}")
                         Text("Label: ${draftBadgeLabel(draft)}")
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedButton(onClick = {
-                            renamingDraft = draft
-                            renameValue = draft.title.ifBlank { draft.id }
-                        }) { Text("Rename") }
-                        OutlinedButton(onClick = { vm.duplicateDraft(draft.id) }) { Text("Duplicate") }
-                        Button(
-                            onClick = { vm.deleteDraft(draft.id) },
-                            colors = destructiveButtonColors()
-                        ) { Text("Delete") }
-                    }
+                    Button(
+                        onClick = { vm.deleteDraft(draft.id) },
+                        colors = destructiveButtonColors()
+                    ) { Text("Delete") }
                 }
             }
 
@@ -141,6 +134,10 @@ fun DraftsScreen(
                                 vm.openPublishedPostInEditor(post)
                                 onOpenEditor()
                             }) { Text("Open in editor") }
+                            OutlinedButton(
+                                onClick = { post.postId?.takeIf { it.startsWith("http") }?.let(uriHandler::openUri) },
+                                enabled = post.postId?.startsWith("http") == true
+                            ) { Text("Open in browser") }
                         }
                     }
                 }
@@ -148,28 +145,6 @@ fun DraftsScreen(
         }
     }
 
-    if (renamingDraft != null) {
-        AlertDialog(
-            onDismissRequest = { renamingDraft = null },
-            title = { Text("Rename post") },
-            text = {
-                OutlinedTextField(
-                    value = renameValue,
-                    onValueChange = { renameValue = it },
-                    label = { Text("New title or slug") }
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    renamingDraft?.let { vm.renameDraft(it.id, renameValue) }
-                    renamingDraft = null
-                }) { Text("Save") }
-            },
-            dismissButton = {
-                TextButton(onClick = { renamingDraft = null }) { Text("Cancel") }
-            }
-        )
-    }
 }
 
 private fun draftBadgeLabel(draft: Draft): String = when {
