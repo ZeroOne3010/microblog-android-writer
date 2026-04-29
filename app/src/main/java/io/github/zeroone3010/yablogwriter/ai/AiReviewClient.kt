@@ -9,6 +9,8 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
+private const val MAX_ERROR_BODY_LENGTH = 4_000
+
 sealed class AiReviewError(message: String, cause: Throwable? = null) : Exception(message, cause) {
     class MissingConfiguration(message: String) : AiReviewError(message)
     class Network(cause: Throwable) : AiReviewError("Network error contacting AI provider", cause)
@@ -79,17 +81,43 @@ class AiReviewClient(
             val raw = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
 
             if (code == 401 || code == 403) {
-                return@withContext Result.failure(AiReviewError.Authentication("Authentication failed ($code). Check API key and provider URL."))
+                return@withContext Result.failure(
+                    AiReviewError.Authentication(
+                        formatErrorDetails(
+                            summary = "Authentication failed. Check API key and provider URL.",
+                            code = code,
+                            raw = raw,
+                            providerMessage = extractProviderMessage(raw),
+                            headers = connection.headerFields
+                        )
+                    )
+                )
             }
             if (code == 429) {
-                return@withContext Result.failure(AiReviewError.RateLimited("Rate limit reached (429). Please retry in a moment."))
+                return@withContext Result.failure(
+                    AiReviewError.RateLimited(
+                        formatErrorDetails(
+                            summary = "Rate limit reached. Please retry in a moment.",
+                            code = code,
+                            raw = raw,
+                            providerMessage = extractProviderMessage(raw),
+                            headers = connection.headerFields
+                        )
+                    )
+                )
             }
             if (code !in 200..299) {
-                val providerMessage = runCatching {
-                    json.decodeFromString<ChatResponse>(raw).error?.message
-                }.getOrNull().orEmpty()
-                val details = providerMessage.ifBlank { "HTTP $code from provider" }
-                return@withContext Result.failure(AiReviewError.Provider(details))
+                return@withContext Result.failure(
+                    AiReviewError.Provider(
+                        formatErrorDetails(
+                            summary = "Provider returned an error.",
+                            code = code,
+                            raw = raw,
+                            providerMessage = extractProviderMessage(raw),
+                            headers = connection.headerFields
+                        )
+                    )
+                )
             }
 
             val response = runCatching { json.decodeFromString<ChatResponse>(raw) }
@@ -111,6 +139,45 @@ class AiReviewClient(
         }
     }
 
+
+
+    private fun extractProviderMessage(raw: String): String = runCatching {
+        json.decodeFromString<ChatResponse>(raw).error?.message
+    }.getOrNull().orEmpty()
+
+    private fun formatErrorDetails(
+        summary: String,
+        code: Int,
+        raw: String,
+        providerMessage: String,
+        headers: Map<String?, List<String>?>
+    ): String {
+        val headerDetails = headers
+            .filterKeys { !it.isNullOrBlank() }
+            .entries
+            .sortedBy { it.key }
+            .joinToString(separator = "\n") { (key, values) ->
+                "$key: ${values.orEmpty().joinToString()}"
+            }
+            .ifBlank { "(none)" }
+
+        val payload = raw
+            .trim()
+            .ifBlank { "(empty)" }
+            .take(MAX_ERROR_BODY_LENGTH)
+
+        val providerLine = providerMessage.ifBlank { "(none)" }
+
+        return buildString {
+            appendLine(summary)
+            appendLine("HTTP status: $code")
+            appendLine("Provider message: $providerLine")
+            appendLine("Response headers:")
+            appendLine(headerDetails)
+            appendLine("Raw response body:")
+            append(payload)
+        }.trim()
+    }
     private fun buildEndpoint(providerBaseUrl: String): String {
         val trimmed = providerBaseUrl.trim().trimEnd('/')
         val withoutVersionSuffix = if (trimmed.endsWith("/v1")) trimmed.removeSuffix("/v1") else trimmed
