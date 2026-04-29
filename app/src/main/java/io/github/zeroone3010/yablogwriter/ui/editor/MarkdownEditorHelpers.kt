@@ -4,6 +4,9 @@ import kotlin.math.max
 import kotlin.math.min
 
 private const val LINK_PLACEHOLDER_TEXT = "link text"
+private const val WEBMENTION_CLASS = "u-in-reply-to"
+
+enum class LinkFormat { MARKDOWN, WEBMENTION }
 
 data class EditorMutation(
     val text: String,
@@ -68,6 +71,48 @@ fun insertLinkTemplate(text: String, request: LinkInsertionRequest, url: String)
         EditorMutation(newText, cursor)
     }
 }
+
+fun insertWebmentionLinkTemplate(text: String, request: LinkInsertionRequest, url: String): EditorMutation {
+    val safeUrl = url.trim()
+    val label = request.selectedText.ifBlank { LINK_PLACEHOLDER_TEXT }
+    val replacement = """<a class="$WEBMENTION_CLASS" href="$safeUrl">$label</a>"""
+    val newText = text.replaceRange(request.selectionStart, request.selectionEnd, replacement)
+
+    return if (request.selectedText.isBlank()) {
+        val labelStart = request.selectionStart + replacement.indexOf(LINK_PLACEHOLDER_TEXT)
+        val labelEnd = labelStart + LINK_PLACEHOLDER_TEXT.length
+        EditorMutation(newText, labelStart, labelEnd)
+    } else {
+        val cursor = request.selectionStart + replacement.length
+        EditorMutation(newText, cursor)
+    }
+}
+
+fun autoLinkInsertionRequest(
+    text: String,
+    selectionStart: Int,
+    selectionEnd: Int,
+    clipboardText: String?
+): Pair<LinkInsertionRequest, String>? {
+    val base = buildLinkInsertionRequest(text, selectionStart, selectionEnd, clipboardText)
+    val selected = base.selectedText.trim()
+    val clipboard = clipboardText?.trim().orEmpty()
+
+    val selectedIsUrl = isValidHttpUrl(selected)
+    val clipboardIsUrl = isValidHttpUrl(clipboard)
+
+    return when {
+        selectedIsUrl && clipboard.isNotBlank() && !clipboardIsUrl -> {
+            base.copy(selectedText = clipboard) to selected
+        }
+        clipboardIsUrl && selected.isNotBlank() && !selectedIsUrl -> {
+            base to clipboard
+        }
+        else -> null
+    }
+}
+
+fun removeAllMoreTags(text: String): String = text.replace("<!--more-->", "")
 
 fun insertInlineAtSelection(text: String, selectionStart: Int, selectionEnd: Int, snippet: String): EditorMutation {
     val safeStart = min(max(selectionStart, 0), text.length)

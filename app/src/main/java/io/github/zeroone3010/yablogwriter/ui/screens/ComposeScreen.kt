@@ -47,10 +47,13 @@ import io.github.zeroone3010.yablogwriter.domain.UploadStatus
 import io.github.zeroone3010.yablogwriter.ui.AppViewModel
 import io.github.zeroone3010.yablogwriter.ui.theme.destructiveButtonColors
 import io.github.zeroone3010.yablogwriter.ui.editor.LinkInsertionRequest
+import io.github.zeroone3010.yablogwriter.ui.editor.autoLinkInsertionRequest
 import io.github.zeroone3010.yablogwriter.ui.editor.findMarkdownImageAtSelection
 import io.github.zeroone3010.yablogwriter.ui.editor.insertInlineAtSelection
 import io.github.zeroone3010.yablogwriter.ui.editor.insertLinkTemplate
+import io.github.zeroone3010.yablogwriter.ui.editor.insertWebmentionLinkTemplate
 import io.github.zeroone3010.yablogwriter.ui.editor.prefixSelectedLines
+import io.github.zeroone3010.yablogwriter.ui.editor.removeAllMoreTags
 import io.github.zeroone3010.yablogwriter.ui.editor.replaceMarkdownImageAltText
 import io.github.zeroone3010.yablogwriter.ui.editor.wrapInCodeBlock
 
@@ -151,13 +154,36 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                         vm.editBody(mutation.text)
                     }) { Text("H1") }
                     OutlinedButton(onClick = {
-                        vm.requestLinkInsertion(
-                            body = editorValue.text,
-                            selectionStart = editorValue.selection.start,
-                            selectionEnd = editorValue.selection.end,
-                            clipboardText = clipboardManager.getText()?.text
-                        )
+                        val auto = autoLinkInsertionRequest(editorValue.text, editorValue.selection.start, editorValue.selection.end, clipboardManager.getText()?.text)
+                        if (auto != null) {
+                            val mutation = insertLinkTemplate(editorValue.text, auto.first, auto.second)
+                            editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
+                            vm.editBody(mutation.text)
+                        } else {
+                            vm.requestLinkInsertion(
+                                body = editorValue.text,
+                                selectionStart = editorValue.selection.start,
+                                selectionEnd = editorValue.selection.end,
+                                clipboardText = clipboardManager.getText()?.text
+                            )
+                        }
                     }) { Text("Link") }
+                    OutlinedButton(onClick = {
+                        val auto = autoLinkInsertionRequest(editorValue.text, editorValue.selection.start, editorValue.selection.end, clipboardManager.getText()?.text)
+                        if (auto != null) {
+                            val mutation = insertWebmentionLinkTemplate(editorValue.text, auto.first, auto.second)
+                            editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
+                            vm.editBody(mutation.text)
+                        } else {
+                            vm.requestLinkInsertion(
+                                body = editorValue.text,
+                                selectionStart = editorValue.selection.start,
+                                selectionEnd = editorValue.selection.end,
+                                clipboardText = clipboardManager.getText()?.text,
+                                asWebmention = true
+                            )
+                        }
+                    }) { Text("Webmention") }
                     OutlinedButton(onClick = {
                         val mutation = insertInlineAtSelection(
                             editorValue.text,
@@ -192,11 +218,22 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                         vm.editBody(mutation.text)
                     }) { Text("Code") }
                     OutlinedButton(onClick = {
+                        val originalText = editorValue.text
+                        val strippedText = removeAllMoreTags(originalText)
+                        val moreTag = "<!--more-->"
+                        val removedBeforeSelectionStart = Regex(Regex.escape(moreTag))
+                            .findAll(originalText.substring(0, editorValue.selection.start.coerceIn(0, originalText.length)))
+                            .count() * moreTag.length
+                        val removedBeforeSelectionEnd = Regex(Regex.escape(moreTag))
+                            .findAll(originalText.substring(0, editorValue.selection.end.coerceIn(0, originalText.length)))
+                            .count() * moreTag.length
+                        val rebasedSelectionStart = (editorValue.selection.start - removedBeforeSelectionStart).coerceIn(0, strippedText.length)
+                        val rebasedSelectionEnd = (editorValue.selection.end - removedBeforeSelectionEnd).coerceIn(0, strippedText.length)
                         val mutation = insertInlineAtSelection(
-                            editorValue.text,
-                            editorValue.selection.start,
-                            editorValue.selection.end,
-                            "<!--more-->"
+                            strippedText,
+                            rebasedSelectionStart,
+                            rebasedSelectionEnd,
+                            moreTag
                         )
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart))
                         vm.editBody(mutation.text)
@@ -230,8 +267,20 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                     ),
                     url
                 )
-                editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
-                vm.editBody(mutation.text)
+                val resolvedMutation = if (state.asWebmention) {
+                    insertWebmentionLinkTemplate(
+                        editorValue.text,
+                        LinkInsertionRequest(
+                            selectionStart = state.selectionStart,
+                            selectionEnd = state.selectionEnd,
+                            selectedText = state.selectedText,
+                            initialUrl = state.initialUrl
+                        ),
+                        url
+                    )
+                } else mutation
+                editorValue = TextFieldValue(resolvedMutation.text, TextRange(resolvedMutation.selectionStart, resolvedMutation.selectionEnd))
+                vm.editBody(resolvedMutation.text)
                 vm.dismissLinkDialog()
             }
         )
