@@ -116,7 +116,7 @@ class MicroblogApi(private val context: Context) {
             val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub?q=config"
             val root = json.parseToJsonElement(getRequest(endpoint, accessToken).body).jsonObject
             val direct = parseCategoryArray(root["categories"] ?: root["category"])
-            val destinations = root["destination"]?.jsonArray.orEmpty().flatMap { destination ->
+            val destinations = (root["destinations"] ?: root["destination"])?.jsonArray.orEmpty().flatMap { destination ->
                 val destinationObject = destination.jsonObject
                 parseCategoryArray(destinationObject["categories"] ?: destinationObject["category"])
             }
