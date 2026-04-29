@@ -16,32 +16,30 @@ class MarkdownDraftRepository(private val context: Context) {
         preferredExternalDir ?: internalDir
     }
 
-    fun listDrafts(): List<Draft> = draftsDir.listFiles()
-        ?.filter { it.extension == "md" }
+    fun listDrafts(): List<Draft> = draftFiles()
         ?.mapNotNull { parseDraft(it) }
         ?.sortedByDescending { it.updated }
         ?: emptyList()
 
     fun saveDraft(draft: Draft): Draft {
-        val newId = createUniqueId(baseFileName(draft.title), excludeId = draft.id)
-        val source = File(draftsDir, "${draft.id}.md")
-        val destination = File(draftsDir, "$newId.md")
-        val updatedDraft = draft.copy(id = newId, updated = Instant.now())
+        val destination = resolveFileForId(draft.id)
+        destination.parentFile?.mkdirs()
+        val updatedDraft = draft.copy(updated = Instant.now())
         destination.writeText(toMarkdown(updatedDraft))
-        if (source.exists() && source.absolutePath != destination.absolutePath) {
-            source.delete()
-        }
         return updatedDraft
     }
 
-    fun createDraft(initialDraft: Draft = Draft()): Draft = saveDraft(initialDraft.copy(status = DraftStatus.DRAFT))
+    fun createDraft(initialDraft: Draft = Draft()): Draft {
+        val id = createUniqueId(baseFileName(initialDraft.title))
+        return saveDraft(initialDraft.copy(id = id, status = DraftStatus.DRAFT))
+    }
 
     fun deleteDraft(id: String) {
-        File(draftsDir, "$id.md").delete()
+        resolveFileForId(id).delete()
     }
 
     fun duplicateDraft(id: String): Draft? {
-        val source = File(draftsDir, "$id.md")
+        val source = resolveFileForId(id)
         if (!source.exists()) return null
         val sourceDraft = parseDraft(source) ?: return null
         val duplicatedTitle = sourceDraft.title.ifBlank { "Untitled draft" } + " (Copy)"
@@ -58,7 +56,7 @@ class MarkdownDraftRepository(private val context: Context) {
     }
 
     fun renameDraft(id: String, newTitleOrSlug: String): Draft? {
-        val source = File(draftsDir, "$id.md")
+        val source = resolveFileForId(id)
         if (!source.exists()) return null
         val draft = parseDraft(source) ?: return null
         val trimmed = newTitleOrSlug.trim()
@@ -93,6 +91,12 @@ class MarkdownDraftRepository(private val context: Context) {
         return imported
     }
 
+    private fun draftFiles(): List<File>? = draftsDir.walkTopDown()
+        .filter { it.isFile && it.extension == "md" }
+        .toList()
+
+    private fun resolveFileForId(id: String): File = File(draftsDir, "$id.md")
+
     private fun parseDraft(file: File): Draft? {
         val text = file.readText()
         val parts = text.split("---")
@@ -104,7 +108,7 @@ class MarkdownDraftRepository(private val context: Context) {
             if (idx <= 0) null else line.substring(0, idx).trim() to line.substring(idx + 1).trim()
         }.toMap()
         return Draft(
-            id = file.nameWithoutExtension,
+            id = file.relativeTo(draftsDir).invariantSeparatorsPath.removeSuffix(".md"),
             title = map["title"] ?: "",
             categories = yaml.lines().filter { it.trimStart().startsWith("- ") }.map { it.substringAfter("- ").trim() },
             body = body,
@@ -137,7 +141,7 @@ class MarkdownDraftRepository(private val context: Context) {
         var candidate = base
         var suffix = 2
         while (true) {
-            if (candidate == excludeId || !File(draftsDir, "$candidate.md").exists()) {
+            if (candidate == excludeId || !resolveFileForId(candidate).exists()) {
                 return candidate
             }
             candidate = "$base-$suffix"
