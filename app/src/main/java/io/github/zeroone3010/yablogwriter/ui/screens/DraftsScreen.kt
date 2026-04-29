@@ -48,9 +48,9 @@ fun DraftsScreen(
     val unpublishedDrafts = uiState.drafts.filter { it.status != DraftStatus.PUBLISHED }.filter {
         it.title.contains(query, ignoreCase = true) || it.body.contains(query, ignoreCase = true)
     }
-    val localPublishedPosts = uiState.drafts.filter { it.status == DraftStatus.PUBLISHED && !it.postId.isNullOrBlank() }
+    val localPublishedPosts = uiState.drafts.filter { it.status == DraftStatus.PUBLISHED }
     val publishedPosts = (uiState.publishedPosts + localPublishedPosts)
-        .distinctBy { it.postId ?: it.id }
+        .distinctBy { postIdentityKey(it) }
         .filter { it.title.contains(query, ignoreCase = true) || it.body.contains(query, ignoreCase = true) }
     val uriHandler = LocalUriHandler.current
 
@@ -120,7 +120,7 @@ fun DraftsScreen(
                     }
                 }
             }
-            items(publishedPosts, key = { it.postId ?: it.id }) { post ->
+            items(publishedPosts, key = { postIdentityKey(it) }) { post ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(post.title.ifBlank { "Untitled post" })
@@ -168,3 +168,5 @@ private fun formatTimestamp(instant: Instant, timestampFormat: TimestampFormat):
         )
     }
 }
+
+private fun postIdentityKey(draft: Draft): String = draft.postId?.takeIf { it.isNotBlank() } ?: draft.id
