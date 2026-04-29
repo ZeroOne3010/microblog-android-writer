@@ -68,7 +68,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun beginSignIn(me: String, openUrl: (String) -> Unit) {
         val normalizedMe = normalizeMe(me)
-        val clientId = "https://micro.blog/apps"
+        val clientId = "https://github.com/zeroone3010/microblog-android-writer"
         val redirectUri = "microblogwriter://auth/callback"
         val config = AuthConfig(
             clientId = clientId,
