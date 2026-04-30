@@ -87,7 +87,6 @@ fun AccountSection(
 
         if (authState.isAuthenticated) {
             Text("Signed in as: ${authState.me.ifBlank { "(unknown me)" }}")
-            Text("Scope: ${authState.scope.ifBlank { "(not returned)" }}")
             Button(
                 onClick = onLogout,
                 colors = destructiveButtonColors()

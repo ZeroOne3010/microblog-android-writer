@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -23,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
@@ -130,32 +132,41 @@ fun SettingsScreen(
             }
 
             SettingsSection("AI settings") {
+                var aiAdvancedExpanded by rememberSaveable { mutableStateOf(false) }
                 RowSwitch("Enable AI review", settings.aiEnabled) { settings = settings.copy(aiEnabled = it) }
-                OutlinedTextField(
-                    value = settings.aiProviderBaseUrl,
-                    onValueChange = { settings = settings.copy(aiProviderBaseUrl = it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("AI provider base URL") }
-                )
-                OutlinedTextField(
-                    value = settings.aiApiKey,
-                    onValueChange = { settings = settings.copy(aiApiKey = it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Provider API key") }
-                )
-                OutlinedTextField(
-                    value = settings.aiModel,
-                    onValueChange = { settings = settings.copy(aiModel = it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Model name") }
-                )
-                OutlinedTextField(
-                    value = settings.aiPromptTemplate,
-                    onValueChange = { settings = settings.copy(aiPromptTemplate = it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 4,
-                    label = { Text("Prompt template ({title}, {contents})") }
-                )
+                OutlinedButton(
+                    onClick = { aiAdvancedExpanded = !aiAdvancedExpanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (aiAdvancedExpanded) "Hide advanced AI settings" else "Show advanced AI settings")
+                }
+                if (aiAdvancedExpanded) {
+                    OutlinedTextField(
+                        value = settings.aiProviderBaseUrl,
+                        onValueChange = { settings = settings.copy(aiProviderBaseUrl = it) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("AI provider base URL") }
+                    )
+                    OutlinedTextField(
+                        value = settings.aiApiKey,
+                        onValueChange = { settings = settings.copy(aiApiKey = it) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Provider API key") }
+                    )
+                    OutlinedTextField(
+                        value = settings.aiModel,
+                        onValueChange = { settings = settings.copy(aiModel = it) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Model name") }
+                    )
+                    OutlinedTextField(
+                        value = settings.aiPromptTemplate,
+                        onValueChange = { settings = settings.copy(aiPromptTemplate = it) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 4,
+                        label = { Text("Prompt template ({title}, {contents})") }
+                    )
+                }
                 Text("Disclosure: Running AI review sends the current draft title/body to the configured AI provider.")
             }
 
