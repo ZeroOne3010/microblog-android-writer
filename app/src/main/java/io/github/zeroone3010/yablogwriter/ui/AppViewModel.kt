@@ -381,14 +381,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             .replace("{contents}", state.selectedDraft.body)
 
         viewModelScope.launch {
+            _uiState.update { it.copy(aiReviewInProgress = true) }
             val result = ai.review(state.settings.aiProviderBaseUrl, state.settings.aiApiKey, state.settings.aiModel, prompt)
             _uiState.update { current ->
                 result.fold(
-                    onSuccess = { output -> current.copy(aiReviewOutput = output, statusMessage = "AI review complete") },
+                    onSuccess = { output -> current.copy(aiReviewOutput = output, aiReviewInProgress = false, statusMessage = "AI review complete") },
                     onFailure = { err ->
                         val details = mapAiError(err)
                         current.copy(
                             aiReviewOutput = "AI review failed.\n\n$details",
+                            aiReviewInProgress = false,
                             statusMessage = "AI review failed. See AI review output for details."
                         )
                     }
