@@ -308,14 +308,15 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated) { Text("Publish") }
         }
         if (uiState.aiReviewOutput.isNotBlank()) {
-            Text("AI review (separate suggestions, never auto-applied):")
+            Text("AI review output (scrollable, selectable, never auto-applied):")
             OutlinedTextField(
                 value = uiState.aiReviewOutput,
                 onValueChange = {},
                 readOnly = true,
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 6,
-                label = { Text("Suggestions") }
+                modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 420.dp),
+                minLines = 8,
+                maxLines = 20,
+                label = { Text("Output details") }
             )
         }
     }

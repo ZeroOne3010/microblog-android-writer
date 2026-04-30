@@ -385,7 +385,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { current ->
                 result.fold(
                     onSuccess = { output -> current.copy(aiReviewOutput = output, statusMessage = "AI review complete") },
-                    onFailure = { err -> current.copy(aiReviewOutput = "", statusMessage = "AI review failed: ${mapAiError(err)}") }
+                    onFailure = { err ->
+                        val details = mapAiError(err)
+                        current.copy(
+                            aiReviewOutput = "AI review failed.\n\n$details",
+                            statusMessage = "AI review failed. See AI review output for details."
+                        )
+                    }
                 )
             }
         }
