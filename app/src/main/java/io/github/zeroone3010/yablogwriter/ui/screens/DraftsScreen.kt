@@ -61,13 +61,20 @@ fun DraftsScreen(
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Search posts") }
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {
-                vm.createNewPost()
-                onOpenEditor()
-            }) { Text("New Post") }
-            OutlinedButton(onClick = vm::refreshDrafts) { Text("Refresh") }
-            OutlinedButton(onClick = vm::refreshPublishedPosts, enabled = uiState.auth.isAuthenticated && !uiState.publishedPostsLoading) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = {
+                    vm.createNewPost()
+                    onOpenEditor()
+                },
+                modifier = Modifier.weight(1f)
+            ) { Text("New Post") }
+            OutlinedButton(onClick = vm::refreshDrafts, modifier = Modifier.weight(1f)) { Text("Refresh") }
+            OutlinedButton(
+                onClick = vm::refreshPublishedPosts,
+                enabled = uiState.auth.isAuthenticated && !uiState.publishedPostsLoading,
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(if (uiState.publishedPostsLoading) "Fetching..." else "Fetch published")
             }
             if (!uiState.auth.isAuthenticated) {
@@ -116,7 +123,7 @@ fun DraftsScreen(
                     Text("Published posts", style = MaterialTheme.typography.titleMedium)
                     HorizontalDivider()
                     if (publishedPosts.isEmpty()) {
-                        Text("No published posts.")
+                        Text("No published posts yet — publish your first story and it'll appear here.")
                     }
                 }
             }
