@@ -349,6 +349,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         refreshDrafts()
     }
 
+    fun saveDraftAndNavigateToPosts() {
+        saveDraft()
+        viewModelScope.launch {
+            _events.send(UiEvent.NavigateToPosts)
+        }
+    }
+
     fun deleteDraft(id: String) {
         draftRepo.deleteDraft(id)
         refreshDrafts()
