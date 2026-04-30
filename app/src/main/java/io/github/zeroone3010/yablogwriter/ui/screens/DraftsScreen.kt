@@ -159,7 +159,7 @@ private fun DraftCard(
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(draft.title.ifBlank { "Untitled post" }, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        text = "Last updated ${formatTimestamp(draft.updated, timestampFormat)} · Draft",
+                        text = "Last updated ${formatTimestamp(draft.updated, timestampFormat)} · ${draftStateSubtitle(draft)}",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -201,10 +201,11 @@ private fun DraftTag(label: String) {
     }
 }
 
-private fun draftBadgeLabel(draft: Draft): String = when {
-    draft.status == DraftStatus.PENDING_PUBLISH -> "Pending Publish"
-    !draft.postId.isNullOrBlank() -> "Published Linked"
-    else -> "Local Post"
+private fun draftStateSubtitle(draft: Draft): String = when (draft.status) {
+    DraftStatus.PENDING_PUBLISH -> "Pending publish"
+    DraftStatus.PENDING_UPLOAD -> "Pending upload"
+    DraftStatus.DRAFT -> if (!draft.postId.isNullOrBlank()) "Linked draft" else "Draft"
+    DraftStatus.PUBLISHED -> "Published"
 }
 
 private fun publishedBadgeLabel(post: Draft): String = when {
