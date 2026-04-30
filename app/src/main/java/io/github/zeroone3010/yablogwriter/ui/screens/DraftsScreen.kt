@@ -7,9 +7,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
@@ -30,7 +37,6 @@ import io.github.zeroone3010.yablogwriter.domain.Draft
 import io.github.zeroone3010.yablogwriter.domain.DraftStatus
 import io.github.zeroone3010.yablogwriter.domain.TimestampFormat
 import io.github.zeroone3010.yablogwriter.ui.AppViewModel
-import io.github.zeroone3010.yablogwriter.ui.theme.destructiveButtonColors
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -87,28 +93,15 @@ fun DraftsScreen(
                 }
             }
             items(unpublishedDrafts, key = { it.id }) { draft ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            vm.selectDraft(draft.id)
-                            onOpenEditor()
-                        }
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(draft.title.ifBlank { "Untitled post" })
-                        Text("Updated: ${formatTimestamp(draft.updated, uiState.settings.timestampFormat)}")
-                        Text("Categories: ${draft.categories.joinToString().ifBlank { "(none)" }}")
-                        Text("Status: ${draft.status}")
-                        Text("Label: ${draftBadgeLabel(draft)}")
-                    }
-                    Button(
-                        onClick = { vm.deleteDraft(draft.id) },
-                        colors = destructiveButtonColors()
-                    ) { Text("Delete") }
-                }
+                DraftCard(
+                    draft = draft,
+                    timestampFormat = uiState.settings.timestampFormat,
+                    onOpen = {
+                        vm.selectDraft(draft.id)
+                        onOpenEditor()
+                    },
+                    onDelete = { vm.deleteDraft(draft.id) }
+                )
             }
 
             item {
@@ -145,6 +138,67 @@ fun DraftsScreen(
         }
     }
 
+}
+
+@Composable
+private fun DraftCard(
+    draft: Draft,
+    timestampFormat: TimestampFormat,
+    onOpen: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var menuExpanded by remember(draft.id) { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpen)
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(draft.title.ifBlank { "Untitled post" }, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "Last updated ${formatTimestamp(draft.updated, timestampFormat)} · Draft",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Column(modifier = Modifier.wrapContentSize()) {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More actions")
+                    }
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete()
+                            }
+                        )
+                    }
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                DraftTag("Draft")
+                DraftTag("Local")
+                if (draft.categories.isEmpty()) {
+                    DraftTag("No category")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DraftTag(label: String) {
+    Card {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
+    }
 }
 
 private fun draftBadgeLabel(draft: Draft): String = when {
