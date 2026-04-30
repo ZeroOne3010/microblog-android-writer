@@ -113,14 +113,9 @@ class MicroblogApi(private val context: Context) {
     suspend fun fetchCategories(settings: SettingsState, accessToken: String): Result<List<String>> = withContext(Dispatchers.IO) {
         runCatching {
             require(accessToken.isNotBlank()) { "Micro.blog access token is required" }
-            val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub?q=config"
+            val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub?q=category"
             val root = json.parseToJsonElement(getRequest(endpoint, accessToken).body).jsonObject
-            val direct = parseCategoryArray(root["categories"] ?: root["category"])
-            val destinations = (root["destinations"] ?: root["destination"])?.jsonArray.orEmpty().flatMap { destination ->
-                val destinationObject = destination.jsonObject
-                parseCategoryArray(destinationObject["categories"] ?: destinationObject["category"])
-            }
-            (direct + destinations).distinct().sorted()
+            parseCategoryArray(root["categories"] ?: root["category"]).distinct().sorted()
         }
     }
 
