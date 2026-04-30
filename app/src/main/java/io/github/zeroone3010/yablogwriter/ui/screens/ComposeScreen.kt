@@ -6,13 +6,21 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.FormatQuote
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -147,20 +155,24 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             Text(uiState.selectedDraft.body)
         } else {
             Surface(modifier = Modifier.fillMaxWidth()) {
-                val formattingButtonModifier = Modifier.heightIn(min = 36.dp)
-                FlowRow(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
                         .padding(horizontal = 8.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    OutlinedButton(onClick = {
+                    SuggestionChip(onClick = {
                         val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "# ")
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
                         vm.editBody(mutation.text)
-                    }, modifier = formattingButtonModifier) { Text("H1") }
-                    OutlinedButton(onClick = {
+                    }, label = { Text("H1") })
+                    SuggestionChip(onClick = {
+                        val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "## ")
+                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
+                        vm.editBody(mutation.text)
+                    }, label = { Text("H2") })
+                    IconButton(onClick = {
                         val auto = autoLinkInsertionRequest(editorValue.text, editorValue.selection.start, editorValue.selection.end, clipboardManager.getText()?.text)
                         if (auto != null) {
                             val mutation = insertLinkTemplate(editorValue.text, auto.first, auto.second)
@@ -174,8 +186,28 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                                 clipboardText = clipboardManager.getText()?.text
                             )
                         }
-                    }, modifier = formattingButtonModifier) { Text("Link") }
-                    OutlinedButton(onClick = {
+                    }) { Icon(Icons.Outlined.Link, contentDescription = "Insert link") }
+                    IconButton(onClick = {
+                        val mutation = insertInlineAtSelection(
+                            editorValue.text,
+                            editorValue.selection.start,
+                            editorValue.selection.end,
+                            "![alt text](https://)"
+                        )
+                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart))
+                        vm.editBody(mutation.text)
+                    }) { Icon(Icons.Outlined.Image, contentDescription = "Insert image") }
+                    IconButton(onClick = {
+                        val mutation = wrapInCodeBlock(editorValue.text, editorValue.selection.start, editorValue.selection.end)
+                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
+                        vm.editBody(mutation.text)
+                    }) { Icon(Icons.Outlined.Code, contentDescription = "Wrap in code block") }
+                    IconButton(onClick = {
+                        val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "> ")
+                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
+                        vm.editBody(mutation.text)
+                    }) { Icon(Icons.Outlined.FormatQuote, contentDescription = "Quote") }
+                    SuggestionChip(onClick = {
                         val auto = autoLinkInsertionRequest(editorValue.text, editorValue.selection.start, editorValue.selection.end, clipboardManager.getText()?.text)
                         if (auto != null) {
                             val mutation = insertWebmentionLinkTemplate(editorValue.text, auto.first, auto.second)
@@ -190,28 +222,8 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                                 asWebmention = true
                             )
                         }
-                    }, modifier = formattingButtonModifier) { Text("Webmention") }
-                    OutlinedButton(onClick = {
-                        val mutation = insertInlineAtSelection(
-                            editorValue.text,
-                            editorValue.selection.start,
-                            editorValue.selection.end,
-                            "![alt text](https://)"
-                        )
-                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart))
-                        vm.editBody(mutation.text)
-                    }, modifier = formattingButtonModifier) { Text("Image") }
-                    OutlinedButton(onClick = {
-                        val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "> ")
-                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
-                        vm.editBody(mutation.text)
-                    }, modifier = formattingButtonModifier) { Text("Quote") }
-                    OutlinedButton(onClick = {
-                        val mutation = wrapInCodeBlock(editorValue.text, editorValue.selection.start, editorValue.selection.end)
-                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
-                        vm.editBody(mutation.text)
-                    }, modifier = formattingButtonModifier) { Text("Code") }
-                    OutlinedButton(onClick = {
+                    }, label = { Text("Webmention") })
+                    SuggestionChip(onClick = {
                         val originalText = editorValue.text
                         val strippedText = removeAllMoreTags(originalText)
                         val moreTag = "<!--more-->"
@@ -231,7 +243,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                         )
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart))
                         vm.editBody(mutation.text)
-                    }, modifier = formattingButtonModifier) { Text("<!--more-->") }
+                    }, label = { Text("<!--more-->") })
                 }
             }
 
