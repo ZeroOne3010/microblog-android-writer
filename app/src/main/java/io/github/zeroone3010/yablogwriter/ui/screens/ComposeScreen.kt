@@ -52,6 +52,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.ImageUploadItem
 import io.github.zeroone3010.yablogwriter.domain.LinkDialogState
@@ -291,7 +292,11 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             }
         )
 
-        Text("Words: ${uiState.markdownWordCount} • Reading time: ${uiState.readingTimeMinutes} min")
+        Text(
+            text = "Words: ${uiState.markdownWordCount} • Reading time: ${uiState.readingTimeMinutes} min",
+            style = MaterialTheme.typography.bodySmall,
+            fontSize = 12.sp
+        )
 
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(
@@ -300,12 +305,18 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             ) {
                 Text("Image upload")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(onClick = {
-                        pickSinglePhoto.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    }) { Text("Pick photo") }
-                    OutlinedButton(onClick = { pickSingleFile.launch("image/*") }) { Text("Pick file") }
+                    OutlinedButton(
+                        onClick = {
+                            pickSinglePhoto.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Pick photo") }
+                    OutlinedButton(
+                        onClick = { pickSingleFile.launch("image/*") },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Pick file") }
                 }
 
                 ImageUploadQueue(
@@ -315,19 +326,25 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    Button(onClick = vm::uploadQueuedImages, enabled = uiState.auth.isAuthenticated && uiState.imageUploadQueue.isNotEmpty()) { Text("Upload image") }
-                    TextButton(onClick = vm::insertUploadedImagesMarkdown, enabled = uiState.imageUploadQueue.any { it.status == UploadStatus.SUCCEEDED }) {
-                        Text("Insert uploaded markdown")
-                    }
+                    Button(
+                        onClick = vm::uploadQueuedImages,
+                        enabled = uiState.auth.isAuthenticated && uiState.imageUploadQueue.isNotEmpty(),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Upload image") }
+                    TextButton(
+                        onClick = vm::insertUploadedImagesMarkdown,
+                        enabled = uiState.imageUploadQueue.any { it.status == UploadStatus.SUCCEEDED },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Insert uploaded markdown") }
                 }
             }
         }
 
         val aiReviewAvailable = uiState.settings.aiEnabled && uiState.settings.aiApiKey.isNotBlank()
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = vm::saveDraft) { Text("Save Post") }
+            OutlinedButton(onClick = vm::saveDraft, modifier = Modifier.weight(1f)) { Text("Save Post") }
             if (aiReviewAvailable) {
-                TextButton(onClick = vm::runAiReview, enabled = !uiState.aiReviewInProgress) {
+                TextButton(onClick = vm::runAiReview, enabled = !uiState.aiReviewInProgress, modifier = Modifier.weight(1f)) {
                     if (uiState.aiReviewInProgress) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                     } else {
@@ -335,7 +352,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                     }
                 }
             }
-            Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated) { Text("Publish") }
+            Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated, modifier = Modifier.weight(1f)) { Text("Publish") }
         }
         if (uiState.aiReviewInProgress || uiState.aiReviewOutput.isNotBlank()) {
             Text("AI review output (scrollable, selectable, never auto-applied):")
