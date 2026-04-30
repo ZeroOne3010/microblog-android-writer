@@ -48,22 +48,17 @@ import io.github.zeroone3010.yablogwriter.ui.AppViewModel
 import io.github.zeroone3010.yablogwriter.ui.theme.destructiveButtonColors
 import io.github.zeroone3010.yablogwriter.ui.editor.LinkInsertionRequest
 import io.github.zeroone3010.yablogwriter.ui.editor.autoLinkInsertionRequest
-import io.github.zeroone3010.yablogwriter.ui.editor.findMarkdownImageAtSelection
 import io.github.zeroone3010.yablogwriter.ui.editor.insertInlineAtSelection
 import io.github.zeroone3010.yablogwriter.ui.editor.insertLinkTemplate
 import io.github.zeroone3010.yablogwriter.ui.editor.insertWebmentionLinkTemplate
 import io.github.zeroone3010.yablogwriter.ui.editor.prefixSelectedLines
 import io.github.zeroone3010.yablogwriter.ui.editor.removeAllMoreTags
-import io.github.zeroone3010.yablogwriter.ui.editor.replaceMarkdownImageAltText
 import io.github.zeroone3010.yablogwriter.ui.editor.wrapInCodeBlock
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Unit) {
     val clipboardManager = LocalClipboardManager.current
-    var imageAltEditorOpen by remember { mutableStateOf(false) }
-    var markdownAltText by remember { mutableStateOf("") }
-
     var editorValue by remember(uiState.selectedDraft.id) {
         mutableStateOf(TextFieldValue(uiState.selectedDraft.body, TextRange(uiState.selectedDraft.body.length)))
     }
@@ -195,19 +190,6 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                         vm.editBody(mutation.text)
                     }, modifier = formattingButtonModifier) { Text("Image") }
                     OutlinedButton(onClick = {
-                        val match = findMarkdownImageAtSelection(
-                            editorValue.text,
-                            editorValue.selection.start,
-                            editorValue.selection.end
-                        )
-                        if (match != null) {
-                            markdownAltText = match.altText
-                            imageAltEditorOpen = true
-                        } else {
-                            vm.editBody(editorValue.text)
-                        }
-                    }, modifier = formattingButtonModifier) { Text("Edit image alt") }
-                    OutlinedButton(onClick = {
                         val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "> ")
                         editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
                         vm.editBody(mutation.text)
@@ -284,39 +266,6 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                 vm.dismissLinkDialog()
             }
         )
-
-        if (imageAltEditorOpen) {
-            val selectedImage = findMarkdownImageAtSelection(
-                editorValue.text,
-                editorValue.selection.start,
-                editorValue.selection.end
-            )
-            AlertDialog(
-                onDismissRequest = { imageAltEditorOpen = false },
-                title = { Text("Edit image alt text") },
-                text = {
-                    OutlinedTextField(
-                        value = markdownAltText,
-                        onValueChange = { markdownAltText = it },
-                        label = { Text("Alt text") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        if (selectedImage != null) {
-                            val mutation = replaceMarkdownImageAltText(editorValue.text, selectedImage, markdownAltText)
-                            editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
-                            vm.editBody(mutation.text)
-                        }
-                        imageAltEditorOpen = false
-                    }) { Text("Save") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { imageAltEditorOpen = false }) { Text("Cancel") }
-                }
-            )
-        }
 
         Text("Words: ${uiState.markdownWordCount} • Reading time: ${uiState.readingTimeMinutes} min")
 
