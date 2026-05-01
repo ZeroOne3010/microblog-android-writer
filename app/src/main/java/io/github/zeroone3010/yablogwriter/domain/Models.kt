@@ -21,7 +21,7 @@ enum class AppTheme { SYSTEM, LIGHT, DARK }
 enum class TimestampFormat { ISO_24H, DMY_24H, MDY_12H }
 
 data class SettingsState(
-    val aiEnabled: Boolean = true,
+    val aiEnabled: Boolean = false,
     val aiProviderBaseUrl: String = "https://api.openai.com",
     val aiApiKey: String = "",
     val aiModel: String = "gpt-5.4-mini",
