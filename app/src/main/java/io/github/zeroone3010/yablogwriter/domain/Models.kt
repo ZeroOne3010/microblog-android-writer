@@ -19,13 +19,27 @@ enum class DraftStatus { DRAFT, PUBLISHED, PENDING_UPLOAD, PENDING_PUBLISH }
 
 enum class AppTheme { SYSTEM, LIGHT, DARK }
 enum class TimestampFormat { ISO_24H, DMY_24H, MDY_12H }
+enum class AiReviewPromptType { IDEA, DRAFT, FINAL, CUSTOM }
 
 data class SettingsState(
     val aiEnabled: Boolean = false,
     val aiProviderBaseUrl: String = "https://api.openai.com",
     val aiApiKey: String = "",
-    val aiModel: String = "gpt-5.4-mini",
-    val aiPromptTemplate: String = "Here's my latest blog post titled {title}. Please review for any grammatical mistakes. Feel free to suggest changes for better flow, for example, but be careful not to change my own voice. {contents}",
+    val aiIdeaPrompt: String = "Here's my idea for a blog post titled {title}. Please help me flesh it out with angles, structure options, and concrete ideas.
+
+{contents}",
+    val aiIdeaModel: String = "gpt-5.4-mini",
+    val aiDraftPrompt: String = "Here's the first draft of my new blog post titled {title}. Please give constructive feedback on structure, clarity, and flow while preserving my voice.
+
+{contents}",
+    val aiDraftModel: String = "gpt-5.4-mini",
+    val aiFinalPrompt: String = "Here's my new blog post titled {title}. I'm almost ready to publish. Please do a final pass for style, grammar, and typos, and keep suggestions concise.
+
+{contents}",
+    val aiFinalModel: String = "gpt-5.4-nano",
+    val aiCustomPrompt: String = "",
+    val aiCustomModel: String = "gpt-5.4-mini",
+    val aiSelectedPromptType: AiReviewPromptType = AiReviewPromptType.IDEA,
     val microblogApiBaseUrl: String = "https://micro.blog",
     val microblogMediaEndpoint: String = "",
     val theme: AppTheme = AppTheme.SYSTEM,

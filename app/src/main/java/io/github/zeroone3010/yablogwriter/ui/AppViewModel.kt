@@ -12,6 +12,7 @@ import io.github.zeroone3010.yablogwriter.auth.MicroblogAuthApi
 import io.github.zeroone3010.yablogwriter.auth.PendingAuthSession
 import io.github.zeroone3010.yablogwriter.data.MarkdownDraftRepository
 import io.github.zeroone3010.yablogwriter.data.SettingsRepository
+import io.github.zeroone3010.yablogwriter.domain.AiReviewPromptType
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.Draft
 import io.github.zeroone3010.yablogwriter.domain.DraftStatus
@@ -380,16 +381,41 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun runAiReview() {
+    fun runAiReview(promptType: AiReviewPromptType, customPrompt: String? = null, customModel: String? = null) {
         val state = _uiState.value
         if (!state.settings.aiEnabled) return
-        val prompt = state.settings.aiPromptTemplate
-            .replace("{title}", state.selectedDraft.title.ifBlank { "Untitled" })
-            .replace("{contents}", state.selectedDraft.body)
+        val title = state.selectedDraft.title.ifBlank { "Untitled" }
+        val contents = state.selectedDraft.body
+        val selectedPromptTemplate = when (promptType) {
+            AiReviewPromptType.IDEA -> state.settings.aiIdeaPrompt
+            AiReviewPromptType.DRAFT -> state.settings.aiDraftPrompt
+            AiReviewPromptType.FINAL -> state.settings.aiFinalPrompt
+            AiReviewPromptType.CUSTOM -> customPrompt ?: state.settings.aiCustomPrompt
+        }
+        val selectedModel = when (promptType) {
+            AiReviewPromptType.IDEA -> state.settings.aiIdeaModel
+            AiReviewPromptType.DRAFT -> state.settings.aiDraftModel
+            AiReviewPromptType.FINAL -> state.settings.aiFinalModel
+            AiReviewPromptType.CUSTOM -> customModel ?: state.settings.aiCustomModel
+        }
+        val prompt = selectedPromptTemplate
+            .replace("{title}", title)
+            .replace("{contents}", contents)
+
+        _uiState.update {
+            it.copy(
+                settings = it.settings.copy(
+                    aiSelectedPromptType = promptType,
+                    aiCustomPrompt = if (promptType == AiReviewPromptType.CUSTOM) selectedPromptTemplate else it.settings.aiCustomPrompt,
+                    aiCustomModel = if (promptType == AiReviewPromptType.CUSTOM) selectedModel else it.settings.aiCustomModel
+                )
+            )
+        }
+        settingsRepo.save(_uiState.value.settings)
 
         viewModelScope.launch {
             _uiState.update { it.copy(aiReviewInProgress = true) }
-            val result = ai.review(state.settings.aiProviderBaseUrl, state.settings.aiApiKey, state.settings.aiModel, prompt)
+            val result = ai.review(state.settings.aiProviderBaseUrl, state.settings.aiApiKey, selectedModel, prompt)
             _uiState.update { current ->
                 result.fold(
                     onSuccess = { output -> current.copy(aiReviewOutput = output, aiReviewInProgress = false, statusMessage = "AI review complete") },
