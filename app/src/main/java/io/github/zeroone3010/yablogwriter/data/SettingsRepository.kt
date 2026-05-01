@@ -3,6 +3,7 @@ package io.github.zeroone3010.yablogwriter.data
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
+import io.github.zeroone3010.yablogwriter.domain.AiReviewPromptType
 import io.github.zeroone3010.yablogwriter.domain.AppTheme
 import io.github.zeroone3010.yablogwriter.domain.SettingsState
 import io.github.zeroone3010.yablogwriter.domain.TimestampFormat
@@ -20,8 +21,17 @@ class SettingsRepository(context: Context) {
         aiEnabled = prefs.getBoolean("ai_enabled", SettingsState().aiEnabled),
         aiProviderBaseUrl = prefs.getString("ai_provider_base_url", SettingsState().aiProviderBaseUrl) ?: SettingsState().aiProviderBaseUrl,
         aiApiKey = prefs.getString("ai_api_key", "") ?: "",
-        aiModel = prefs.getString("ai_model", "gpt-4.1-mini") ?: "gpt-4.1-mini",
-        aiPromptTemplate = prefs.getString("ai_prompt", SettingsState().aiPromptTemplate) ?: SettingsState().aiPromptTemplate,
+        aiIdeaPrompt = prefs.getString("ai_idea_prompt", SettingsState().aiIdeaPrompt) ?: SettingsState().aiIdeaPrompt,
+        aiIdeaModel = prefs.getString("ai_idea_model", SettingsState().aiIdeaModel) ?: SettingsState().aiIdeaModel,
+        aiDraftPrompt = prefs.getString("ai_draft_prompt", SettingsState().aiDraftPrompt) ?: SettingsState().aiDraftPrompt,
+        aiDraftModel = prefs.getString("ai_draft_model", SettingsState().aiDraftModel) ?: SettingsState().aiDraftModel,
+        aiFinalPrompt = prefs.getString("ai_final_prompt", SettingsState().aiFinalPrompt) ?: SettingsState().aiFinalPrompt,
+        aiFinalModel = prefs.getString("ai_final_model", SettingsState().aiFinalModel) ?: SettingsState().aiFinalModel,
+        aiCustomPrompt = prefs.getString("ai_custom_prompt", "") ?: "",
+        aiCustomModel = prefs.getString("ai_custom_model", SettingsState().aiCustomModel) ?: SettingsState().aiCustomModel,
+        aiSelectedPromptType = AiReviewPromptType.valueOf(
+            prefs.getString("ai_selected_prompt_type", SettingsState().aiSelectedPromptType.name) ?: SettingsState().aiSelectedPromptType.name
+        ),
         microblogApiBaseUrl = prefs.getString("microblog_api_base_url", SettingsState().microblogApiBaseUrl) ?: SettingsState().microblogApiBaseUrl,
         microblogMediaEndpoint = prefs.getString("microblog_media_endpoint", "") ?: "",
         theme = AppTheme.valueOf(prefs.getString("theme", AppTheme.SYSTEM.name) ?: AppTheme.SYSTEM.name),
@@ -36,8 +46,15 @@ class SettingsRepository(context: Context) {
             .putBoolean("ai_enabled", settings.aiEnabled)
             .putString("ai_provider_base_url", settings.aiProviderBaseUrl)
             .putString("ai_api_key", settings.aiApiKey)
-            .putString("ai_model", settings.aiModel)
-            .putString("ai_prompt", settings.aiPromptTemplate)
+            .putString("ai_idea_prompt", settings.aiIdeaPrompt)
+            .putString("ai_idea_model", settings.aiIdeaModel)
+            .putString("ai_draft_prompt", settings.aiDraftPrompt)
+            .putString("ai_draft_model", settings.aiDraftModel)
+            .putString("ai_final_prompt", settings.aiFinalPrompt)
+            .putString("ai_final_model", settings.aiFinalModel)
+            .putString("ai_custom_prompt", settings.aiCustomPrompt)
+            .putString("ai_custom_model", settings.aiCustomModel)
+            .putString("ai_selected_prompt_type", settings.aiSelectedPromptType.name)
             .putString("microblog_api_base_url", settings.microblogApiBaseUrl)
             .putString("microblog_media_endpoint", settings.microblogMediaEndpoint)
             .putString("theme", settings.theme.name)

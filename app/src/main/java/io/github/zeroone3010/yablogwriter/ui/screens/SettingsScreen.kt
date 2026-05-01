@@ -24,7 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
@@ -132,7 +131,7 @@ fun SettingsScreen(
             }
 
             SettingsSection("AI settings") {
-                var aiAdvancedExpanded by rememberSaveable { mutableStateOf(false) }
+                var aiAdvancedExpanded by remember { mutableStateOf(false) }
                 RowSwitch("Enable AI review", settings.aiEnabled) { settings = settings.copy(aiEnabled = it) }
                 OutlinedButton(
                     onClick = { aiAdvancedExpanded = !aiAdvancedExpanded },
@@ -153,20 +152,8 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Provider API key") }
                     )
-                    OutlinedTextField(
-                        value = settings.aiModel,
-                        onValueChange = { settings = settings.copy(aiModel = it) },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Model name") }
-                    )
-                    OutlinedTextField(
-                        value = settings.aiPromptTemplate,
-                        onValueChange = { settings = settings.copy(aiPromptTemplate = it) },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 4,
-                        label = { Text("Prompt template ({title}, {contents})") }
-                    )
                 }
+                Text("AI prompt/model selection now happens from the AI Review dialog in Compose.")
                 Text("Disclosure: Running AI review sends the current draft title/body to the configured AI provider.")
             }
 
