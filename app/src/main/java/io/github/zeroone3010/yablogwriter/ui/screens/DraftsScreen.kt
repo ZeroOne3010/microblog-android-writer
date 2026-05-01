@@ -47,8 +47,7 @@ import java.util.Locale
 fun DraftsScreen(
     uiState: AppUiState,
     vm: AppViewModel,
-    onOpenEditor: () -> Unit = {},
-    onRequireAuth: () -> Unit = {}
+    onOpenEditor: () -> Unit = {}
 ) {
     var query by remember { mutableStateOf("") }
     val unpublishedDrafts = uiState.drafts.filter { it.status != DraftStatus.PUBLISHED }.filter {
@@ -82,9 +81,6 @@ fun DraftsScreen(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(if (uiState.publishedPostsLoading) "Fetching..." else "Fetch published")
-            }
-            if (!uiState.auth.isAuthenticated) {
-                TextButton(onClick = onRequireAuth) { Text("Account") }
             }
         }
         uiState.publishedPostsError?.let { Text("Published fetch error: $it") }

@@ -174,8 +174,7 @@ fun MicroblogWriterApp(
                     DraftsScreen(
                         uiState = uiState,
                         vm = appViewModel,
-                        onOpenEditor = { navController.navigate(ROUTE_COMPOSE) },
-                        onRequireAuth = { navController.navigate(ROUTE_SETTINGS_ACCOUNT) }
+                        onOpenEditor = { navController.navigate(ROUTE_COMPOSE) }
                     )
                 }
                 composable(ROUTE_COMPOSE) {
