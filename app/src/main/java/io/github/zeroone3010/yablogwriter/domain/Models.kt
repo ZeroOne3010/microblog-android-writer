@@ -25,17 +25,23 @@ data class SettingsState(
     val aiEnabled: Boolean = false,
     val aiProviderBaseUrl: String = "https://api.openai.com",
     val aiApiKey: String = "",
-    val aiIdeaPrompt: String = "Here's my idea for a blog post titled {title}. Please help me flesh it out with angles, structure options, and concrete ideas.
+    val aiIdeaPrompt: String = """
+        Here's my idea for a blog post titled {title}. Please help me flesh it out with angles, structure options, and concrete ideas.
 
-{contents}",
+        {contents}
+    """.trimIndent(),
     val aiIdeaModel: String = "gpt-5.4-mini",
-    val aiDraftPrompt: String = "Here's the first draft of my new blog post titled {title}. Please give constructive feedback on structure, clarity, and flow while preserving my voice.
+    val aiDraftPrompt: String = """
+        Here's the first draft of my new blog post titled {title}. Please give constructive feedback on structure, clarity, and flow while preserving my voice.
 
-{contents}",
+        {contents}
+    """.trimIndent(),
     val aiDraftModel: String = "gpt-5.4-mini",
-    val aiFinalPrompt: String = "Here's my new blog post titled {title}. I'm almost ready to publish. Please do a final pass for style, grammar, and typos, and keep suggestions concise.
+    val aiFinalPrompt: String = """
+        Here's my new blog post titled {title}. I'm almost ready to publish. Please do a final pass for style, grammar, and typos, and keep suggestions concise.
 
-{contents}",
+        {contents}
+    """.trimIndent(),
     val aiFinalModel: String = "gpt-5.4-nano",
     val aiCustomPrompt: String = "",
     val aiCustomModel: String = "gpt-5.4-mini",
