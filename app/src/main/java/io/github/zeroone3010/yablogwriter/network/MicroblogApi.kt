@@ -93,41 +93,52 @@ class MicroblogApi(private val context: Context) {
         runCatching {
             require(accessToken.isNotBlank()) { "Micro.blog access token is required" }
             val baseUrl = settings.microblogApiBaseUrl.trimEnd('/')
+            val endpointAttempts = listOf(
+                "$baseUrl/posts/all" to { endpoint: String -> parsePostsApiResponse(getRequest(endpoint, accessToken).body) },
+                "$baseUrl/posts" to { endpoint: String -> parsePostsApiResponse(getRequest(endpoint, accessToken).body) },
+                "$baseUrl/micropub?q=source&limit=20" to { endpoint: String -> parseMicropubSourceResponse(getRequest(endpoint, accessToken).body) }
+            )
+            val errors = mutableListOf<String>()
 
-            val apiResult = runCatching {
-                val endpoint = "$baseUrl/posts"
-                val root = json.parseToJsonElement(getRequest(endpoint, accessToken).body).jsonObject
-                val items = root["items"]?.jsonArray ?: emptyList()
-                items.mapNotNull { item ->
-                    val obj = item.jsonObject
-                    val content = obj["content_text"]?.jsonPrimitive?.contentOrNull
-                        ?: obj["content_html"]?.jsonPrimitive?.contentOrNull
-                        ?: return@mapNotNull null
-                    Draft(
-                        title = obj["title"]?.jsonPrimitive?.contentOrNull ?: "",
-                        body = content,
-                        categories = obj["tags"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList(),
-                        postId = obj["url"]?.jsonPrimitive?.contentOrNull ?: obj["id"]?.jsonPrimitive?.contentOrNull
-                    )
-                }
+            for ((endpoint, fetcher) in endpointAttempts) {
+                val result = runCatching { fetcher(endpoint) }
+                result.onSuccess { return@runCatching it }
+                result.onFailure { err -> errors += "$endpoint -> ${err.message ?: "Unknown error"}" }
             }
 
-            apiResult.getOrElse {
-                val fallbackEndpoint = "$baseUrl/micropub?q=source&limit=20"
-                val body = getRequest(fallbackEndpoint, accessToken).body
-                val root = json.parseToJsonElement(body).jsonObject
-                val items = root["items"]?.jsonArray ?: return@getOrElse emptyList()
-                items.mapNotNull { item ->
-                    val obj = item.jsonObject
-                    val content = obj["content"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-                    Draft(
-                        title = obj["name"]?.jsonPrimitive?.contentOrNull ?: "",
-                        body = content,
-                        categories = obj["category"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList(),
-                        postId = obj["url"]?.jsonPrimitive?.contentOrNull
-                    )
-                }
-            }
+            throw IllegalStateException("Unable to fetch published posts. Attempts: ${errors.joinToString(" | ")}")
+        }
+    }
+
+    private fun parsePostsApiResponse(body: String): List<Draft> {
+        val root = json.parseToJsonElement(body).jsonObject
+        val items = root["items"]?.jsonArray ?: emptyList()
+        return items.mapNotNull { item ->
+            val obj = item.jsonObject
+            val content = obj["content_text"]?.jsonPrimitive?.contentOrNull
+                ?: obj["content_html"]?.jsonPrimitive?.contentOrNull
+                ?: return@mapNotNull null
+            Draft(
+                title = obj["title"]?.jsonPrimitive?.contentOrNull ?: "",
+                body = content,
+                categories = obj["tags"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList(),
+                postId = obj["url"]?.jsonPrimitive?.contentOrNull ?: obj["id"]?.jsonPrimitive?.contentOrNull
+            )
+        }
+    }
+
+    private fun parseMicropubSourceResponse(body: String): List<Draft> {
+        val root = json.parseToJsonElement(body).jsonObject
+        val items = root["items"]?.jsonArray ?: emptyList()
+        return items.mapNotNull { item ->
+            val obj = item.jsonObject
+            val content = obj["content"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+            Draft(
+                title = obj["name"]?.jsonPrimitive?.contentOrNull ?: "",
+                body = content,
+                categories = obj["category"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList(),
+                postId = obj["url"]?.jsonPrimitive?.contentOrNull
+            )
         }
     }
 
