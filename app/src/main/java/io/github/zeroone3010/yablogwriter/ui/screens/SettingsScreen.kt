@@ -153,7 +153,6 @@ fun SettingsScreen(
                         label = { Text("Provider API key") }
                     )
                 }
-                Text("AI prompt/model selection now happens from the AI Review dialog in Compose.")
                 Text("Disclosure: Running AI review sends the current draft title/body to the configured AI provider.")
             }
 
