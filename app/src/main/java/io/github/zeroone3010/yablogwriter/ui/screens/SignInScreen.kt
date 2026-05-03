@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.zeroone3010.yablogwriter.auth.AuthState
+import io.github.zeroone3010.yablogwriter.ui.sanitizeHostInput
 import io.github.zeroone3010.yablogwriter.ui.theme.destructiveButtonColors
 
 @Composable
@@ -73,7 +74,7 @@ fun AccountSection(
 
         OutlinedTextField(
             value = meInput,
-            onValueChange = { meInput = it },
+            onValueChange = { meInput = sanitizeHostInput(it) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Your site (me), e.g. https://yourname.micro.blog") }
         )
