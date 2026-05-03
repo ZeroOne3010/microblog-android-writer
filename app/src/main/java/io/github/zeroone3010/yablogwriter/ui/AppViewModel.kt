@@ -549,7 +549,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun updateDraft(update: Draft.() -> Draft) {
-        val updated = _uiState.value.selectedDraft.update().copy(status = DraftStatus.DRAFT)
+        val current = _uiState.value.selectedDraft
+        val edited = current.update()
+        val statusAfterEdit = if (current.status == DraftStatus.PUBLISHED && !current.postId.isNullOrBlank()) {
+            DraftStatus.PUBLISHED
+        } else {
+            DraftStatus.DRAFT
+        }
+        val updated = edited.copy(status = statusAfterEdit)
         _uiState.update {
             val words = wordCount(updated.body)
             it.copy(selectedDraft = updated, markdownWordCount = words, readingTimeMinutes = readingTime(words))
@@ -563,10 +570,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         autosaveJob = viewModelScope.launch {
             delay(AUTOSAVE_DEBOUNCE_MS)
             if (version != autosaveVersion) return@launch
-            val current = _uiState.value.selectedDraft
-            if (current.id == draft.id && current.status == DraftStatus.PUBLISHED && !current.postId.isNullOrBlank()) {
-                return@launch
-            }
             val (saved, drafts, categories) = withContext(Dispatchers.IO) {
                 val savedDraft = draftRepo.saveDraft(draft)
                 val allDrafts = draftRepo.listDrafts()
