@@ -603,7 +603,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun normalizeMe(me: String): String {
-        val trimmed = me.trim()
+        val trimmed = sanitizeHostInput(me).trim()
         if (trimmed.isBlank()) return "https://micro.blog"
         return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
     }
