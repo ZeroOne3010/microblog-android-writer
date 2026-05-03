@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.zeroone3010.yablogwriter.BuildConfig
 import io.github.zeroone3010.yablogwriter.domain.AppTheme
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.TimestampFormat
@@ -159,6 +160,16 @@ fun SettingsScreen(
             SettingsSection("Draft storage") {
                 Text("Draft markdown files are stored in /storage/emulated/0/Android/media/io.github.zeroone3010.yablogwriter when available.")
             }
+
+
+            Text(
+                text = "Build: ${BuildConfig.BUILD_TIME_UTC} • ${BuildConfig.GIT_COMMIT_SHORT}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 4.dp)
+            )
         }
     }
 }

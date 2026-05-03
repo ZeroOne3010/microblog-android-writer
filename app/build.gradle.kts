@@ -1,3 +1,6 @@
+
+import java.time.Instant
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -10,6 +13,8 @@ android {
 
     defaultConfig {
         applicationId = "io.github.zeroone3010.yablogwriter"
+        buildConfigField("String", "BUILD_TIME_UTC", "\"${buildTimeUtcProvider.get()}\"")
+        buildConfigField("String", "GIT_COMMIT_SHORT", "\"${gitCommitHashProvider.get()}\"")
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -36,6 +41,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
@@ -47,6 +53,15 @@ android {
     }
 }
 
+
+
+val gitCommitHashProvider = providers.exec {
+    commandLine("git", "rev-parse", "--short=7", "HEAD")
+}.standardOutput.asText.map { it.trim() }
+
+val buildTimeUtcProvider = providers.provider {
+    Instant.now().toString()
+}
 
 val generatedIconResDir = layout.buildDirectory.dir("generated/res/icon")
 
