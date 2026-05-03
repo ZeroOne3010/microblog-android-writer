@@ -92,20 +92,41 @@ class MicroblogApi(private val context: Context) {
     suspend fun fetchRecentPosts(settings: SettingsState, accessToken: String): Result<List<Draft>> = withContext(Dispatchers.IO) {
         runCatching {
             require(accessToken.isNotBlank()) { "Micro.blog access token is required" }
-            val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub?q=source&limit=20"
-            val body = getRequest(endpoint, accessToken).body
-            val root = json.parseToJsonElement(body).jsonObject
-            val items = root["items"]?.jsonArray ?: return@runCatching emptyList()
+            val baseUrl = settings.microblogApiBaseUrl.trimEnd('/')
 
-            items.mapNotNull { item ->
-                val obj = item.jsonObject
-                val content = obj["content"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-                Draft(
-                    title = obj["name"]?.jsonPrimitive?.contentOrNull ?: "",
-                    body = content,
-                    categories = obj["category"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList(),
-                    postId = obj["url"]?.jsonPrimitive?.contentOrNull
-                )
+            val apiResult = runCatching {
+                val endpoint = "$baseUrl/posts"
+                val root = json.parseToJsonElement(getRequest(endpoint, accessToken).body).jsonObject
+                val items = root["items"]?.jsonArray ?: emptyList()
+                items.mapNotNull { item ->
+                    val obj = item.jsonObject
+                    val content = obj["content_text"]?.jsonPrimitive?.contentOrNull
+                        ?: obj["content_html"]?.jsonPrimitive?.contentOrNull
+                        ?: return@mapNotNull null
+                    Draft(
+                        title = obj["title"]?.jsonPrimitive?.contentOrNull ?: "",
+                        body = content,
+                        categories = obj["tags"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList(),
+                        postId = obj["url"]?.jsonPrimitive?.contentOrNull ?: obj["id"]?.jsonPrimitive?.contentOrNull
+                    )
+                }
+            }
+
+            apiResult.getOrElse {
+                val fallbackEndpoint = "$baseUrl/micropub?q=source&limit=20"
+                val body = getRequest(fallbackEndpoint, accessToken).body
+                val root = json.parseToJsonElement(body).jsonObject
+                val items = root["items"]?.jsonArray ?: return@getOrElse emptyList()
+                items.mapNotNull { item ->
+                    val obj = item.jsonObject
+                    val content = obj["content"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                    Draft(
+                        title = obj["name"]?.jsonPrimitive?.contentOrNull ?: "",
+                        body = content,
+                        categories = obj["category"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList(),
+                        postId = obj["url"]?.jsonPrimitive?.contentOrNull
+                    )
+                }
             }
         }
     }

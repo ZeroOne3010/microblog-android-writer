@@ -150,7 +150,12 @@ fun MicroblogWriterApp(
                             onClick = {
                                 val leavingComposeToPosts = destination?.route == ROUTE_COMPOSE && item.route == ROUTE_DRAFTS
                                 if (leavingComposeToPosts) {
-                                    appViewModel.saveDraftAndNavigateToPosts()
+                                    appViewModel.saveDraft()
+                                    navController.navigate(item.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 } else {
                                     if (destination?.route == ROUTE_COMPOSE && item.route != ROUTE_COMPOSE) {
                                         appViewModel.saveDraft()
