@@ -570,10 +570,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         autosaveJob = viewModelScope.launch {
             delay(AUTOSAVE_DEBOUNCE_MS)
             if (version != autosaveVersion) return@launch
-            val current = _uiState.value.selectedDraft
-            if (current.id == draft.id && current.status == DraftStatus.PUBLISHED && !current.postId.isNullOrBlank()) {
-                return@launch
-            }
             val (saved, drafts, categories) = withContext(Dispatchers.IO) {
                 val savedDraft = draftRepo.saveDraft(draft)
                 val allDrafts = draftRepo.listDrafts()
