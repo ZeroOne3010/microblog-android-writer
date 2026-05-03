@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.zeroone3010.yablogwriter.domain.AiReviewPromptType
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
+import io.github.zeroone3010.yablogwriter.domain.SettingsState
 import io.github.zeroone3010.yablogwriter.domain.ImageUploadItem
 import io.github.zeroone3010.yablogwriter.domain.LinkDialogState
 import io.github.zeroone3010.yablogwriter.domain.UploadStatus
@@ -365,6 +366,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             AiReviewPromptDialog(
                 onDismiss = { showAiDialog = false },
                 initialPromptType = uiState.settings.aiSelectedPromptType,
+                settings = uiState.settings,
                 customPromptInitial = uiState.settings.aiCustomPrompt,
                 customModelInitial = uiState.settings.aiCustomModel,
                 onRun = { promptType, customPrompt, customModel ->
@@ -393,6 +395,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
 private fun AiReviewPromptDialog(
     onDismiss: () -> Unit,
     initialPromptType: AiReviewPromptType,
+    settings: SettingsState,
     customPromptInitial: String,
     customModelInitial: String,
     onRun: (AiReviewPromptType, String?, String?) -> Unit
@@ -409,10 +412,34 @@ private fun AiReviewPromptDialog(
                 PromptOption("First draft", "Feedback on clarity and flow", selected == AiReviewPromptType.DRAFT) { selected = AiReviewPromptType.DRAFT }
                 PromptOption("Final pass", "Fast style/grammar check before publish", selected == AiReviewPromptType.FINAL) { selected = AiReviewPromptType.FINAL }
                 PromptOption("Custom", "Use your own prompt and model", selected == AiReviewPromptType.CUSTOM) { selected = AiReviewPromptType.CUSTOM }
-                if (selected == AiReviewPromptType.CUSTOM) {
-                    OutlinedTextField(value = customModel, onValueChange = { customModel = it }, label = { Text("Custom model") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = customPrompt, onValueChange = { customPrompt = it }, label = { Text("Custom prompt ({title}, {contents})") }, minLines = 4, modifier = Modifier.fillMaxWidth())
+                val selectedModel = when (selected) {
+                    AiReviewPromptType.IDEA -> settings.aiIdeaModel
+                    AiReviewPromptType.DRAFT -> settings.aiDraftModel
+                    AiReviewPromptType.FINAL -> settings.aiFinalModel
+                    AiReviewPromptType.CUSTOM -> customModel
                 }
+                val selectedPrompt = when (selected) {
+                    AiReviewPromptType.IDEA -> settings.aiIdeaPrompt
+                    AiReviewPromptType.DRAFT -> settings.aiDraftPrompt
+                    AiReviewPromptType.FINAL -> settings.aiFinalPrompt
+                    AiReviewPromptType.CUSTOM -> customPrompt
+                }
+
+                OutlinedTextField(
+                    value = selectedModel,
+                    onValueChange = { if (selected == AiReviewPromptType.CUSTOM) customModel = it },
+                    readOnly = selected != AiReviewPromptType.CUSTOM,
+                    label = { Text("Model") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = selectedPrompt,
+                    onValueChange = { if (selected == AiReviewPromptType.CUSTOM) customPrompt = it },
+                    readOnly = selected != AiReviewPromptType.CUSTOM,
+                    label = { Text("Prompt ({title}, {contents})") },
+                    minLines = 4,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         },
         confirmButton = {
