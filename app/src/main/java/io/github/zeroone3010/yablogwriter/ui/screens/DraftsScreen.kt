@@ -23,7 +23,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,12 +86,8 @@ fun DraftsScreen(
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Unpublished posts", style = MaterialTheme.typography.titleMedium)
-                    HorizontalDivider()
-                    if (unpublishedDrafts.isEmpty()) {
-                        Text("No unpublished posts.")
-                    }
+                if (unpublishedDrafts.isEmpty()) {
+                    Text("No unpublished posts.")
                 }
             }
             items(unpublishedDrafts, key = { it.id }) { draft ->
@@ -108,12 +103,8 @@ fun DraftsScreen(
             }
 
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Published posts", style = MaterialTheme.typography.titleMedium)
-                    HorizontalDivider()
-                    if (publishedPosts.isEmpty()) {
-                        Text("No published posts yet — publish your first story and it'll appear here.")
-                    }
+                if (publishedPosts.isEmpty()) {
+                    Text("No published posts yet — publish your first story and it'll appear here.")
                 }
             }
             items(publishedPosts, key = { postIdentityKey(it) }) { post ->
