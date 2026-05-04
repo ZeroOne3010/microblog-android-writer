@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -50,6 +51,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
@@ -88,11 +91,6 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
         uri?.let { vm.queueImages(listOf(it.toString())) }
     }
 
-    val pickSingleFile = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let { vm.queueImages(listOf(it.toString())) }
-    }
 
     LaunchedEffect(uiState.selectedDraft.id, uiState.selectedDraft.body) {
         if (editorValue.text != uiState.selectedDraft.body) {
@@ -109,10 +107,14 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
+    val scrollState = rememberScrollState()
+    var showFormattingToolbar by remember { mutableStateOf(true) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
         if (!uiState.auth.isAuthenticated) {
             Text("Sign in is required for publish/upload actions.")
             OutlinedButton(onClick = onRequireAuth) { Text("Go to account settings") }
@@ -156,102 +158,13 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             }
         }
 
-        if (uiState.previewMode) {
+            if (uiState.previewMode) {
             Text("Preview")
             Divider()
             Text(uiState.selectedDraft.body)
         } else {
-            Surface(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    SuggestionChip(onClick = {
-                        val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "# ")
-                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
-                        vm.editBody(mutation.text)
-                    }, label = { Text("H1") })
-                    SuggestionChip(onClick = {
-                        val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "## ")
-                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
-                        vm.editBody(mutation.text)
-                    }, label = { Text("H2") })
-                    IconButton(onClick = {
-                        val auto = autoLinkInsertionRequest(editorValue.text, editorValue.selection.start, editorValue.selection.end, clipboardManager.getText()?.text)
-                        if (auto != null) {
-                            val mutation = insertLinkTemplate(editorValue.text, auto.first, auto.second)
-                            editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
-                            vm.editBody(mutation.text)
-                        } else {
-                            vm.requestLinkInsertion(
-                                body = editorValue.text,
-                                selectionStart = editorValue.selection.start,
-                                selectionEnd = editorValue.selection.end,
-                                clipboardText = clipboardManager.getText()?.text
-                            )
-                        }
-                    }) { Icon(Icons.Outlined.Link, contentDescription = "Insert link") }
-                    IconButton(onClick = {
-                        val mutation = insertInlineAtSelection(
-                            editorValue.text,
-                            editorValue.selection.start,
-                            editorValue.selection.end,
-                            "![alt text](https://)"
-                        )
-                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart))
-                        vm.editBody(mutation.text)
-                    }) { Icon(Icons.Outlined.Image, contentDescription = "Insert image") }
-                    IconButton(onClick = {
-                        val mutation = wrapInCodeBlock(editorValue.text, editorValue.selection.start, editorValue.selection.end)
-                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
-                        vm.editBody(mutation.text)
-                    }) { Icon(Icons.Outlined.Code, contentDescription = "Wrap in code block") }
-                    IconButton(onClick = {
-                        val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "> ")
-                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
-                        vm.editBody(mutation.text)
-                    }) { Icon(Icons.Outlined.FormatQuote, contentDescription = "Quote") }
-                    SuggestionChip(onClick = {
-                        val auto = autoLinkInsertionRequest(editorValue.text, editorValue.selection.start, editorValue.selection.end, clipboardManager.getText()?.text)
-                        if (auto != null) {
-                            val mutation = insertWebmentionLinkTemplate(editorValue.text, auto.first, auto.second)
-                            editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd))
-                            vm.editBody(mutation.text)
-                        } else {
-                            vm.requestLinkInsertion(
-                                body = editorValue.text,
-                                selectionStart = editorValue.selection.start,
-                                selectionEnd = editorValue.selection.end,
-                                clipboardText = clipboardManager.getText()?.text,
-                                asWebmention = true
-                            )
-                        }
-                    }, label = { Text("Webmention") })
-                    SuggestionChip(onClick = {
-                        val originalText = editorValue.text
-                        val strippedText = removeAllMoreTags(originalText)
-                        val moreTag = "<!--more-->"
-                        val removedBeforeSelectionStart = Regex(Regex.escape(moreTag))
-                            .findAll(originalText.substring(0, editorValue.selection.start.coerceIn(0, originalText.length)))
-                            .count() * moreTag.length
-                        val removedBeforeSelectionEnd = Regex(Regex.escape(moreTag))
-                            .findAll(originalText.substring(0, editorValue.selection.end.coerceIn(0, originalText.length)))
-                            .count() * moreTag.length
-                        val rebasedSelectionStart = (editorValue.selection.start - removedBeforeSelectionStart).coerceIn(0, strippedText.length)
-                        val rebasedSelectionEnd = (editorValue.selection.end - removedBeforeSelectionEnd).coerceIn(0, strippedText.length)
-                        val mutation = insertInlineAtSelection(
-                            strippedText,
-                            rebasedSelectionStart,
-                            rebasedSelectionEnd,
-                            moreTag
-                        )
-                        editorValue = TextFieldValue(mutation.text, TextRange(mutation.selectionStart))
-                        vm.editBody(mutation.text)
-                    }, label = { Text("<!--more-->") })
-                }
+            EditorFormattingToolbar(editorValue = editorValue, clipboardManager = clipboardManager, vm = vm) {
+                editorValue = it
             }
 
             OutlinedTextField(
@@ -260,7 +173,10 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                     editorValue = it
                     vm.editBody(it.text)
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
+                    val bounds = coordinates.boundsInWindow()
+                    showFormattingToolbar = bounds.bottom > 0f
+                },
                 minLines = 12,
                 label = { Text("Markdown") }
             )
@@ -319,10 +235,6 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                         },
                         modifier = Modifier.weight(1f)
                     ) { Text("Pick photo") }
-                    OutlinedButton(
-                        onClick = { pickSingleFile.launch("image/*") },
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Pick file") }
                 }
 
                 ImageUploadQueue(
@@ -388,6 +300,117 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                 label = { Text("Output details") }
             )
         }
+    }
+        if (!uiState.previewMode && showFormattingToolbar) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+            ) {
+                EditorFormattingToolbar(editorValue = editorValue, clipboardManager = clipboardManager, vm = vm) {
+                    editorValue = it
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditorFormattingToolbar(
+    editorValue: TextFieldValue,
+    clipboardManager: androidx.compose.ui.platform.ClipboardManager,
+    vm: AppViewModel,
+    onEditorValueChange: (TextFieldValue) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        SuggestionChip(onClick = {
+            val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "# ")
+            onEditorValueChange(TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd)))
+            vm.editBody(mutation.text)
+        }, label = { Text("H1") })
+        SuggestionChip(onClick = {
+            val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "## ")
+            onEditorValueChange(TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd)))
+            vm.editBody(mutation.text)
+        }, label = { Text("H2") })
+        IconButton(onClick = {
+            val auto = autoLinkInsertionRequest(editorValue.text, editorValue.selection.start, editorValue.selection.end, clipboardManager.getText()?.text)
+            if (auto != null) {
+                val mutation = insertLinkTemplate(editorValue.text, auto.first, auto.second)
+                onEditorValueChange(TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd)))
+                vm.editBody(mutation.text)
+            } else {
+                vm.requestLinkInsertion(
+                    body = editorValue.text,
+                    selectionStart = editorValue.selection.start,
+                    selectionEnd = editorValue.selection.end,
+                    clipboardText = clipboardManager.getText()?.text
+                )
+            }
+        }) { Icon(Icons.Outlined.Link, contentDescription = "Insert link") }
+        IconButton(onClick = {
+            val mutation = insertInlineAtSelection(
+                editorValue.text,
+                editorValue.selection.start,
+                editorValue.selection.end,
+                "![alt text](https://)"
+            )
+            onEditorValueChange(TextFieldValue(mutation.text, TextRange(mutation.selectionStart)))
+            vm.editBody(mutation.text)
+        }) { Icon(Icons.Outlined.Image, contentDescription = "Insert image") }
+        IconButton(onClick = {
+            val mutation = wrapInCodeBlock(editorValue.text, editorValue.selection.start, editorValue.selection.end)
+            onEditorValueChange(TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd)))
+            vm.editBody(mutation.text)
+        }) { Icon(Icons.Outlined.Code, contentDescription = "Wrap in code block") }
+        IconButton(onClick = {
+            val mutation = prefixSelectedLines(editorValue.text, editorValue.selection.start, editorValue.selection.end, "> ")
+            onEditorValueChange(TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd)))
+            vm.editBody(mutation.text)
+        }) { Icon(Icons.Outlined.FormatQuote, contentDescription = "Quote") }
+        SuggestionChip(onClick = {
+            val auto = autoLinkInsertionRequest(editorValue.text, editorValue.selection.start, editorValue.selection.end, clipboardManager.getText()?.text)
+            if (auto != null) {
+                val mutation = insertWebmentionLinkTemplate(editorValue.text, auto.first, auto.second)
+                onEditorValueChange(TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd)))
+                vm.editBody(mutation.text)
+            } else {
+                vm.requestLinkInsertion(
+                    body = editorValue.text,
+                    selectionStart = editorValue.selection.start,
+                    selectionEnd = editorValue.selection.end,
+                    clipboardText = clipboardManager.getText()?.text,
+                    asWebmention = true
+                )
+            }
+        }, label = { Text("Webmention") })
+        SuggestionChip(onClick = {
+            val originalText = editorValue.text
+            val strippedText = removeAllMoreTags(originalText)
+            val moreTag = "<!--more-->"
+            val removedBeforeSelectionStart = Regex(Regex.escape(moreTag))
+                .findAll(originalText.substring(0, editorValue.selection.start.coerceIn(0, originalText.length)))
+                .count() * moreTag.length
+            val removedBeforeSelectionEnd = Regex(Regex.escape(moreTag))
+                .findAll(originalText.substring(0, editorValue.selection.end.coerceIn(0, originalText.length)))
+                .count() * moreTag.length
+            val rebasedSelectionStart = (editorValue.selection.start - removedBeforeSelectionStart).coerceIn(0, strippedText.length)
+            val rebasedSelectionEnd = (editorValue.selection.end - removedBeforeSelectionEnd).coerceIn(0, strippedText.length)
+            val mutation = insertInlineAtSelection(
+                strippedText,
+                rebasedSelectionStart,
+                rebasedSelectionEnd,
+                moreTag
+            )
+            onEditorValueChange(TextFieldValue(mutation.text, TextRange(mutation.selectionStart)))
+            vm.editBody(mutation.text)
+        }, label = { Text("<!--more-->") })
     }
 }
 
