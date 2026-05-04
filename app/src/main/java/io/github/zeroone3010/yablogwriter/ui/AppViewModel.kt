@@ -63,7 +63,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         refreshDrafts()
-        refreshPublishedPosts()
         refreshBlogCategories()
     }
 
@@ -169,8 +168,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 auth = AuthState(),
                 blogCategories = emptyList(),
                 blogCategoriesLoading = false,
-                publishedPosts = emptyList(),
-                publishedPostsError = null,
                 imageUploadQueue = emptyList(),
                 statusMessage = "Signed out"
             )
@@ -462,26 +459,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             )
             refreshDrafts()
-            if (result.isSuccess) {
-                refreshPublishedPosts()
-            }
-        }
-    }
-
-    fun refreshPublishedPosts() {
-        if (!_uiState.value.auth.isAuthenticated) {
-            _uiState.update { it.copy(publishedPosts = emptyList(), publishedPostsLoading = false, publishedPostsError = null) }
-            return
-        }
-        _uiState.update { it.copy(publishedPostsLoading = true, publishedPostsError = null) }
-        viewModelScope.launch {
-            val result = api.fetchRecentPosts(_uiState.value.settings, _uiState.value.auth.accessToken)
-            _uiState.update {
-                result.fold(
-                    onSuccess = { posts -> it.copy(publishedPosts = posts, publishedPostsLoading = false, publishedPostsError = null) },
-                    onFailure = { err -> it.copy(publishedPosts = emptyList(), publishedPostsLoading = false, publishedPostsError = err.message ?: "Unable to fetch published posts", statusMessage = "Fetch published posts failed: ${err.message}") }
-                )
-            }
         }
     }
 
@@ -515,28 +492,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val current = _uiState.value.selectedDraft.categories
         val next = if (current.contains(category)) current - category else current + category
         updateDraft { copy(categories = next.distinct()) }
-    }
-
-    fun importPublishedPost(post: Draft) {
-        val imported = draftRepo.importRemoteDraft(post)
-        refreshDrafts()
-        _uiState.update { it.copy(selectedDraft = imported, markdownWordCount = wordCount(imported.body), readingTimeMinutes = readingTime(wordCount(imported.body)), statusMessage = "Imported published post into local drafts") }
-    }
-
-    fun openPublishedPostInEditor(post: Draft) {
-        val local = linkedLocalDraft(post.postId)
-        val selected = local ?: post.copy(status = DraftStatus.DRAFT)
-        _uiState.update {
-            val words = wordCount(selected.body)
-            it.copy(selectedDraft = selected, markdownWordCount = words, readingTimeMinutes = readingTime(words), statusMessage = if (local != null) "Opened linked local draft in editor" else "Opened remote post in editor (import to save locally)")
-        }
-    }
-
-    fun republishUpdate(post: Draft) {
-        if (!ensureAuthenticated("Sign in to publish updates.")) return
-        val local = linkedLocalDraft(post.postId) ?: draftRepo.importRemoteDraft(post)
-        _uiState.update { it.copy(selectedDraft = local) }
-        publishPost()
     }
 
     fun updateSettings(settings: SettingsState) {
