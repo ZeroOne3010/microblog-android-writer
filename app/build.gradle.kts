@@ -13,8 +13,8 @@ android {
 
     defaultConfig {
         applicationId = "io.github.zeroone3010.yablogwriter"
-        buildConfigField("String", "BUILD_TIME_UTC", "\"${buildTimeUtcProvider.get()}\"")
-        buildConfigField("String", "GIT_COMMIT_SHORT", "\"${gitCommitHashProvider.get()}\"")
+        buildConfigField("String", "BUILD_TIME_UTC", "\"$buildTimeUtc\"")
+        buildConfigField("String", "GIT_COMMIT_SHORT", "\"$gitCommitShort\"")
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -55,13 +55,16 @@ android {
 
 
 
-val gitCommitHashProvider = providers.exec {
-    commandLine("git", "rev-parse", "--short=7", "HEAD")
-}.standardOutput.asText.map { it.trim() }
+val gitCommitShort = runCatching {
+    val process = ProcessBuilder("git", "rev-parse", "--short=7", "HEAD")
+        .directory(rootDir)
+        .redirectErrorStream(true)
+        .start()
+    val output = process.inputStream.bufferedReader().use { it.readText().trim() }
+    if (process.waitFor() == 0 && output.isNotBlank()) output else "unknown"
+}.getOrDefault("unknown")
 
-val buildTimeUtcProvider = providers.provider {
-    Instant.now().toString()
-}
+val buildTimeUtc = Instant.now().toString()
 
 val generatedIconResDir = layout.buildDirectory.dir("generated/res/icon")
 
