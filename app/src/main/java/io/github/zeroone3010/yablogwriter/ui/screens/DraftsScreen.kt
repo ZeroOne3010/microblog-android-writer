@@ -52,9 +52,8 @@ fun DraftsScreen(
     val unpublishedDrafts = uiState.drafts.filter { it.status != DraftStatus.PUBLISHED }.filter {
         it.title.contains(query, ignoreCase = true) || it.body.contains(query, ignoreCase = true)
     }
-    val localPublishedPosts = uiState.drafts.filter { it.status == DraftStatus.PUBLISHED }
-    val publishedPosts = (uiState.publishedPosts + localPublishedPosts)
-        .distinctBy { postIdentityKey(it) }
+    val publishedPosts = uiState.drafts
+        .filter { it.status == DraftStatus.PUBLISHED }
         .filter { it.title.contains(query, ignoreCase = true) || it.body.contains(query, ignoreCase = true) }
     val uriHandler = LocalUriHandler.current
 
@@ -74,15 +73,7 @@ fun DraftsScreen(
                 modifier = Modifier.weight(1f)
             ) { Text("New Post") }
             OutlinedButton(onClick = vm::refreshDrafts, modifier = Modifier.weight(1f)) { Text("Refresh") }
-            OutlinedButton(
-                onClick = vm::refreshPublishedPosts,
-                enabled = uiState.auth.isAuthenticated && !uiState.publishedPostsLoading,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(if (uiState.publishedPostsLoading) "Fetching..." else "Fetch published")
-            }
         }
-        uiState.publishedPostsError?.let { Text("Published fetch error: $it") }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
@@ -107,18 +98,15 @@ fun DraftsScreen(
                     Text("No published posts yet — publish your first story and it'll appear here.")
                 }
             }
-            items(publishedPosts, key = { postIdentityKey(it) }) { post ->
+            items(publishedPosts, key = { it.id }) { post ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(post.title.ifBlank { "Untitled post" })
                         Text("Categories: ${post.categories.joinToString().ifBlank { "(none)" }}")
                         Text("Label: ${publishedBadgeLabel(post)}")
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { vm.importPublishedPost(post) }, enabled = uiState.auth.isAuthenticated) {
-                                Text("Import locally")
-                            }
                             TextButton(onClick = {
-                                vm.openPublishedPostInEditor(post)
+                                vm.selectDraft(post.id)
                                 onOpenEditor()
                             }) { Text("Open in editor") }
                             OutlinedButton(
@@ -202,10 +190,7 @@ private fun draftStateSubtitle(draft: Draft): String = when (draft.status) {
     DraftStatus.PUBLISHED -> "Published"
 }
 
-private fun publishedBadgeLabel(post: Draft): String = when {
-    post.postId.isNullOrBlank() -> "Published (No ID)"
-    else -> "Published Remote"
-}
+private fun publishedBadgeLabel(post: Draft): String = if (post.postId.isNullOrBlank()) "Published (No ID)" else "Published"
 
 private fun formatTimestamp(instant: Instant, timestampFormat: TimestampFormat): String {
     val zoned = instant.atZone(ZoneId.systemDefault()).withSecond(0).withNano(0)
@@ -218,4 +203,3 @@ private fun formatTimestamp(instant: Instant, timestampFormat: TimestampFormat):
     }
 }
 
-private fun postIdentityKey(draft: Draft): String = draft.postId?.takeIf { it.isNotBlank() } ?: draft.id
