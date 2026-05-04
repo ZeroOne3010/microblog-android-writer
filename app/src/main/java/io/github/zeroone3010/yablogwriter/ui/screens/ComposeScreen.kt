@@ -110,10 +110,17 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
 
     val scrollState = rememberScrollState()
     var showStickyFormattingToolbar by remember { mutableStateOf(false) }
+    var contentTopInWindow by remember { mutableStateOf(0f) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(12.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .onGloballyPositioned { coordinates ->
+                    contentTopInWindow = coordinates.positionInWindow().y
+                }
+                .verticalScroll(scrollState)
+                .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
         if (!uiState.auth.isAuthenticated) {
@@ -166,7 +173,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
         } else {
             Box(
                 modifier = Modifier.onGloballyPositioned { coordinates ->
-                    showStickyFormattingToolbar = coordinates.positionInWindow().y < 0f
+                    showStickyFormattingToolbar = coordinates.positionInWindow().y < contentTopInWindow
                 }
             ) {
                 EditorFormattingToolbar(editorValue = editorValue, clipboardManager = clipboardManager, vm = vm) {
