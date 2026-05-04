@@ -52,8 +52,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
@@ -109,7 +109,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
     }
 
     val scrollState = rememberScrollState()
-    var showFormattingToolbar by remember { mutableStateOf(true) }
+    var showStickyFormattingToolbar by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -164,8 +164,14 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             Divider()
             Text(uiState.selectedDraft.body)
         } else {
-            EditorFormattingToolbar(editorValue = editorValue, clipboardManager = clipboardManager, vm = vm) {
-                editorValue = it
+            Box(
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    showStickyFormattingToolbar = coordinates.positionInWindow().y < 0f
+                }
+            ) {
+                EditorFormattingToolbar(editorValue = editorValue, clipboardManager = clipboardManager, vm = vm) {
+                    editorValue = it
+                }
             }
 
             OutlinedTextField(
@@ -174,10 +180,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                     editorValue = it
                     vm.editBody(it.text)
                 },
-                modifier = Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
-                    val bounds = coordinates.boundsInWindow()
-                    showFormattingToolbar = bounds.bottom > 0f
-                },
+                modifier = Modifier.fillMaxWidth(),
                 minLines = 12,
                 label = { Text("Markdown") }
             )
@@ -302,7 +305,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             )
         }
     }
-        if (!uiState.previewMode && showFormattingToolbar) {
+        if (!uiState.previewMode && showStickyFormattingToolbar) {
             Surface(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
