@@ -148,9 +148,6 @@ fun MicroblogWriterApp(
                         NavigationBarItem(
                             selected = destination?.hierarchy?.any { it.route?.startsWith(item.route) == true } == true,
                             onClick = {
-                                if (destination?.route?.startsWith(ROUTE_COMPOSE) == true && item.route == ROUTE_DRAFTS) {
-                                    appViewModel.saveDraftAndNavigateToPosts()
-                                } else {
                                     if (destination?.route?.startsWith(ROUTE_COMPOSE) == true) {
                                         appViewModel.saveDraft()
                                     }
@@ -159,7 +156,6 @@ fun MicroblogWriterApp(
                                         launchSingleTop = true
                                         restoreState = true
                                     }
-                                }
                             },
                             icon = item.icon,
                             label = { Text(item.label) }
