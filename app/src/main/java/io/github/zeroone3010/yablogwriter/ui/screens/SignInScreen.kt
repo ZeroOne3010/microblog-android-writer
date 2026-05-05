@@ -52,7 +52,8 @@ fun AccountSection(
     defaultMe: String,
     onStartSignIn: (String) -> Unit,
     onLogout: () -> Unit,
-    autofocus: Boolean = false
+    autofocus: Boolean = false,
+    showSectionTitle: Boolean = true
 ) {
     var meInput by remember(defaultMe) { mutableStateOf(defaultMe) }
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
@@ -69,7 +70,9 @@ fun AccountSection(
             .bringIntoViewRequester(bringIntoViewRequester),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text("Account")
+        if (showSectionTitle) {
+            Text("Account")
+        }
         Text("Uses IndieAuth to acquire a Micropub token compatible with Micro.blog.")
 
         OutlinedTextField(

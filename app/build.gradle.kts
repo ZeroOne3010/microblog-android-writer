@@ -7,6 +7,17 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+val gitCommitShort = runCatching {
+    val process = ProcessBuilder("git", "rev-parse", "--short=7", "HEAD")
+        .directory(rootDir)
+        .redirectErrorStream(true)
+        .start()
+    val output = process.inputStream.bufferedReader().use { it.readText().trim() }
+    if (process.waitFor() == 0 && output.isNotBlank()) output else "unknown"
+}.getOrDefault("unknown")
+
+val buildTimeUtc = Instant.now().toString()
+
 android {
     namespace = "io.github.zeroone3010.yablogwriter"
     compileSdk = 35
@@ -52,19 +63,6 @@ android {
         }
     }
 }
-
-
-
-val gitCommitShort = runCatching {
-    val process = ProcessBuilder("git", "rev-parse", "--short=7", "HEAD")
-        .directory(rootDir)
-        .redirectErrorStream(true)
-        .start()
-    val output = process.inputStream.bufferedReader().use { it.readText().trim() }
-    if (process.waitFor() == 0 && output.isNotBlank()) output else "unknown"
-}.getOrDefault("unknown")
-
-val buildTimeUtc = Instant.now().toString()
 
 val generatedIconResDir = layout.buildDirectory.dir("generated/res/icon")
 
