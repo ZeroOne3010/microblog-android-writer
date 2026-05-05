@@ -1,6 +1,12 @@
 
 import java.time.Instant
 
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.serialization")
+}
+
 val gitCommitShort = runCatching {
     val process = ProcessBuilder("git", "rev-parse", "--short=7", "HEAD")
         .directory(rootDir)
@@ -11,12 +17,6 @@ val gitCommitShort = runCatching {
 }.getOrDefault("unknown")
 
 val buildTimeUtc = Instant.now().toString()
-
-plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.serialization")
-}
 
 android {
     namespace = "io.github.zeroone3010.yablogwriter"
