@@ -73,7 +73,8 @@ fun SettingsScreen(
                     defaultMe = uiState.auth.me.ifBlank { "https://micro.blog" },
                     onStartSignIn = onStartSignIn,
                     onLogout = onLogout,
-                    autofocus = focusAccountSection
+                    autofocus = focusAccountSection,
+                    showSectionTitle = false
                 )
             }
 
@@ -108,7 +109,10 @@ fun SettingsScreen(
                     selected = settings.theme == AppTheme.DARK,
                     onClick = { settings = settings.copy(theme = AppTheme.DARK) }
                 )
-                RowSwitch("Category reminder", settings.categoryReminderEnabled) {
+            }
+
+            SettingsSection("Category reminder") {
+                RowSwitch("Enable category reminder", settings.categoryReminderEnabled) {
                     settings = settings.copy(categoryReminderEnabled = it)
                 }
             }
@@ -141,6 +145,7 @@ fun SettingsScreen(
                     Text(if (aiAdvancedExpanded) "Hide advanced AI settings" else "Show advanced AI settings")
                 }
                 if (aiAdvancedExpanded) {
+                    Text("Disclosure: Running AI review sends the current draft title/body to the configured AI provider.")
                     OutlinedTextField(
                         value = settings.aiProviderBaseUrl,
                         onValueChange = { settings = settings.copy(aiProviderBaseUrl = it) },
@@ -154,7 +159,6 @@ fun SettingsScreen(
                         label = { Text("Provider API key") }
                     )
                 }
-                Text("Disclosure: Running AI review sends the current draft title/body to the configured AI provider.")
             }
 
             SettingsSection("Draft storage") {
@@ -162,8 +166,10 @@ fun SettingsScreen(
             }
 
 
+            val buildTime = BuildConfig.BUILD_TIME_UTC.takeUnless { it.isBlank() || it == "null" } ?: "debug build"
+            val commit = BuildConfig.GIT_COMMIT_SHORT.takeUnless { it.isBlank() || it == "null" } ?: "local"
             Text(
-                text = "Build: ${BuildConfig.BUILD_TIME_UTC} • ${BuildConfig.GIT_COMMIT_SHORT}",
+                text = "Build: $buildTime • $commit",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier

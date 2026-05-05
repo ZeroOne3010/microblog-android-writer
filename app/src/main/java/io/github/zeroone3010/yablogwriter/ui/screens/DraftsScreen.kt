@@ -49,12 +49,9 @@ fun DraftsScreen(
     onOpenEditor: () -> Unit = {}
 ) {
     var query by remember { mutableStateOf("") }
-    val unpublishedDrafts = uiState.drafts.filter { it.status != DraftStatus.PUBLISHED }.filter {
+    val filteredPosts = uiState.drafts.filter {
         it.title.contains(query, ignoreCase = true) || it.body.contains(query, ignoreCase = true)
     }
-    val publishedPosts = uiState.drafts
-        .filter { it.status == DraftStatus.PUBLISHED }
-        .filter { it.title.contains(query, ignoreCase = true) || it.body.contains(query, ignoreCase = true) }
     val uriHandler = LocalUriHandler.current
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -76,44 +73,38 @@ fun DraftsScreen(
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            item {
-                if (unpublishedDrafts.isEmpty()) {
-                    Text("No unpublished posts.")
-                }
-            }
-            items(unpublishedDrafts, key = { it.id }) { draft ->
-                DraftCard(
-                    draft = draft,
-                    timestampFormat = uiState.settings.timestampFormat,
-                    onOpen = {
-                        vm.selectDraft(draft.id)
-                        onOpenEditor()
-                    },
-                    onDelete = { vm.deleteDraft(draft.id) }
-                )
-            }
-
-            item {
-                if (publishedPosts.isEmpty()) {
-                    Text("No published posts yet — publish your first story and it'll appear here.")
-                }
-            }
-            items(publishedPosts, key = { it.id }) { post ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(post.title.ifBlank { "Untitled post" })
-                        Text("Categories: ${post.categories.joinToString().ifBlank { "(none)" }}")
-                        Text("Label: ${publishedBadgeLabel(post)}")
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = {
+            if (filteredPosts.isEmpty()) {
+                item { Text("No posts.") }
+            } else {
+                items(filteredPosts, key = { it.id }) { post ->
+                    if (post.status == DraftStatus.PUBLISHED) {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(post.title.ifBlank { "Untitled post" })
+                                Text("Categories: ${post.categories.joinToString().ifBlank { "(none)" }}")
+                                Text("Label: ${publishedBadgeLabel(post)}")
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    TextButton(onClick = {
+                                        vm.selectDraft(post.id)
+                                        onOpenEditor()
+                                    }) { Text("Open in editor") }
+                                    OutlinedButton(
+                                        onClick = { post.postId?.takeIf { it.startsWith("http") }?.let(uriHandler::openUri) },
+                                        enabled = post.postId?.startsWith("http") == true
+                                    ) { Text("Open in browser") }
+                                }
+                            }
+                        }
+                    } else {
+                        DraftCard(
+                            draft = post,
+                            timestampFormat = uiState.settings.timestampFormat,
+                            onOpen = {
                                 vm.selectDraft(post.id)
                                 onOpenEditor()
-                            }) { Text("Open in editor") }
-                            OutlinedButton(
-                                onClick = { post.postId?.takeIf { it.startsWith("http") }?.let(uriHandler::openUri) },
-                                enabled = post.postId?.startsWith("http") == true
-                            ) { Text("Open in browser") }
-                        }
+                            },
+                            onDelete = { vm.deleteDraft(post.id) }
+                        )
                     }
                 }
             }
@@ -202,4 +193,3 @@ private fun formatTimestamp(instant: Instant, timestampFormat: TimestampFormat):
         )
     }
 }
-

@@ -148,10 +148,10 @@ fun MicroblogWriterApp(
                         NavigationBarItem(
                             selected = destination?.hierarchy?.any { it.route?.startsWith(item.route) == true } == true,
                             onClick = {
-                                if (destination?.route == ROUTE_COMPOSE && item.route == ROUTE_DRAFTS) {
+                                if (destination?.route?.startsWith(ROUTE_COMPOSE) == true && item.route == ROUTE_DRAFTS) {
                                     appViewModel.saveDraftAndNavigateToPosts()
                                 } else {
-                                    if (destination?.route == ROUTE_COMPOSE) {
+                                    if (destination?.route?.startsWith(ROUTE_COMPOSE) == true) {
                                         appViewModel.saveDraft()
                                     }
                                     navController.navigate(item.route) {
