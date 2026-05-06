@@ -146,7 +146,10 @@ fun MicroblogWriterApp(
                     val destination = navBackStackEntry?.destination
                     items.forEach { item ->
                         NavigationBarItem(
-                            selected = destination?.hierarchy?.any { it.route == item.route } == true,
+                            selected = destination?.hierarchy?.any { navDestination ->
+                                val route = navDestination.route
+                                route == item.route || route?.startsWith("${item.route}?") == true
+                            } == true,
                             onClick = {
                                 val fromCompose = destination?.route?.startsWith(ROUTE_COMPOSE) == true
 
