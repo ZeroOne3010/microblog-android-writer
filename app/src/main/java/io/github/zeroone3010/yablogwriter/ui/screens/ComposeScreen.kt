@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.FormatQuote
@@ -55,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
@@ -272,7 +274,6 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
         val aiReviewAvailable = uiState.settings.aiEnabled && uiState.settings.aiApiKey.isNotBlank()
         var showAiDialog by remember { mutableStateOf(false) }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = vm::saveDraft, modifier = Modifier.weight(1f)) { Text("Save Post") }
             if (aiReviewAvailable) {
                 TextButton(onClick = { showAiDialog = true }, enabled = !uiState.aiReviewInProgress, modifier = Modifier.weight(1f)) {
                     if (uiState.aiReviewInProgress) {
@@ -300,15 +301,14 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
         }
 
         if (uiState.aiReviewInProgress || uiState.aiReviewOutput.isNotBlank()) {
-            Text("AI review output (scrollable, selectable, never auto-applied):")
+            Text("AI suggestions")
             OutlinedTextField(
                 value = if (uiState.aiReviewInProgress && uiState.aiReviewOutput.isBlank()) "Running AI review..." else uiState.aiReviewOutput,
                 onValueChange = {},
                 readOnly = true,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 420.dp).bringIntoViewRequester(aiReviewOutputRequester),
                 minLines = 8,
-                maxLines = 20,
-                label = { Text("Output details") }
+                maxLines = 20
             )
         }
     }
@@ -485,8 +485,13 @@ private fun AiReviewPromptDialog(
 
 @Composable
 private fun PromptOption(title: String, description: String, selected: Boolean, onClick: () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        RadioButton(selected = selected, onClick = onClick)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        RadioButton(selected = selected, onClick = null)
         Column { Text(title); Text(description, style = MaterialTheme.typography.bodySmall) }
     }
 }

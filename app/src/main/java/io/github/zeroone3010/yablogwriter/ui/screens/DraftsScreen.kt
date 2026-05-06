@@ -74,7 +74,7 @@ fun DraftsScreen(
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (filteredPosts.isEmpty()) {
-                item { Text("No posts.") }
+                item { Text("No posts yet. Write one!") }
             } else {
                 items(filteredPosts, key = { it.id }) { post ->
                     if (post.status == DraftStatus.PUBLISHED) {

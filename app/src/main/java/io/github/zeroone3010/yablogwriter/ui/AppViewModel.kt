@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
 import java.util.UUID
 import kotlin.math.max
 
@@ -489,7 +490,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateSettings(settings: SettingsState) {
         settingsRepo.save(settings)
-        _uiState.update { it.copy(settings = settings, statusMessage = "Settings saved") }
+        _uiState.update { it.copy(settings = settings, settingsLastSavedAt = Instant.now()) }
     }
 
     fun clearStatusMessage() {

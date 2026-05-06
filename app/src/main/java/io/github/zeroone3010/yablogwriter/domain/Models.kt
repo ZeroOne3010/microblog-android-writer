@@ -88,5 +88,6 @@ data class AppUiState(
     val settings: SettingsState = SettingsState(),
     val auth: AuthState = AuthState(),
     val linkDialogState: LinkDialogState? = null,
-    val imageUploadQueue: List<ImageUploadItem> = emptyList()
+    val imageUploadQueue: List<ImageUploadItem> = emptyList(),
+    val settingsLastSavedAt: Instant? = null
 )
