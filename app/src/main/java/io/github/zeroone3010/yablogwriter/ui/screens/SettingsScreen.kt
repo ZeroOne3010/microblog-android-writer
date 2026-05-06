@@ -10,13 +10,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +23,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -33,6 +33,9 @@ import io.github.zeroone3010.yablogwriter.domain.AppTheme
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.TimestampFormat
 import io.github.zeroone3010.yablogwriter.ui.AppViewModel
+import kotlinx.coroutines.flow.debounce
+import java.time.Duration
+import java.time.Instant
 
 @Composable
 fun SettingsScreen(
@@ -43,21 +46,15 @@ fun SettingsScreen(
     onLogout: () -> Unit
 ) {
     var settings by remember(uiState.settings) { mutableStateOf(uiState.settings) }
+    val saveIndicator = remember(uiState.settingsLastSavedAt) { formatSettingsSaveIndicator(uiState.settingsLastSavedAt) }
 
-    Scaffold(
-        bottomBar = {
-            Surface(shadowElevation = 4.dp) {
-                Button(
-                    onClick = { vm.updateSettings(settings) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    Text("Save settings")
-                }
-            }
-        }
-    ) { innerPadding ->
+    LaunchedEffect(Unit) {
+        snapshotFlow { settings }
+            .debounce(700)
+            .collect { debounced -> vm.updateSettings(debounced) }
+    }
+
+    Scaffold { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -112,7 +109,7 @@ fun SettingsScreen(
             }
 
             SettingsSection("Category reminder") {
-                RowSwitch("Enable category reminder", settings.categoryReminderEnabled) {
+                RowSwitch("Remind me to add categories", settings.categoryReminderEnabled) {
                     settings = settings.copy(categoryReminderEnabled = it)
                 }
             }
@@ -162,9 +159,19 @@ fun SettingsScreen(
             }
 
             SettingsSection("Draft storage") {
-                Text("Draft markdown files are stored in /storage/emulated/0/Android/media/io.github.zeroone3010.yablogwriter when available.")
+                Text("Drafts are stored locally on your device.")
+                Text(
+                    "/storage/emulated/0/Android/media/io.github.zeroone3010.yablogwriter",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
+            Text(
+                text = saveIndicator,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             val buildTime = BuildConfig.BUILD_TIME_UTC.takeUnless { it.isBlank() || it == "null" } ?: "debug build"
             val commit = BuildConfig.GIT_COMMIT_SHORT.takeUnless { it.isBlank() || it == "null" } ?: "local"
@@ -177,6 +184,17 @@ fun SettingsScreen(
                     .padding(top = 8.dp, bottom = 4.dp)
             )
         }
+    }
+}
+
+private fun formatSettingsSaveIndicator(lastSavedAt: Instant?): String {
+    if (lastSavedAt == null) return "Saved just now"
+    val seconds = Duration.between(lastSavedAt, Instant.now()).seconds.coerceAtLeast(0)
+    return when {
+        seconds < 5 -> "Saved just now"
+        seconds < 60 -> "Saved ${seconds}s ago"
+        seconds < 3600 -> "Saved ${seconds / 60}m ago"
+        else -> "Saved ${seconds / 3600}h ago"
     }
 }
 
