@@ -26,7 +26,6 @@ import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -43,6 +42,7 @@ import io.github.zeroone3010.yablogwriter.ui.theme.MicroblogWriterTheme
 private const val ROUTE_DRAFTS = "drafts"
 private const val ROUTE_COMPOSE = "compose"
 private const val ROUTE_SETTINGS = "settings"
+private const val ROUTE_SETTINGS_WITH_ARGS = "settings?focusAccount={focusAccount}"
 private const val ROUTE_SETTINGS_ACCOUNT = "settings?focusAccount=true"
 
 data class NavItem(val route: String, val label: String, val icon: @Composable () -> Unit)
@@ -106,9 +106,9 @@ fun MicroblogWriterApp(
             when (event) {
                 UiEvent.NavigateToPosts -> {
                     navController.navigate(ROUTE_DRAFTS) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        popUpTo(ROUTE_DRAFTS) { inclusive = false }
                         launchSingleTop = true
-                        restoreState = true
+                        restoreState = false
                     }
                 }
 
@@ -146,16 +146,32 @@ fun MicroblogWriterApp(
                     val destination = navBackStackEntry?.destination
                     items.forEach { item ->
                         NavigationBarItem(
-                            selected = destination?.hierarchy?.any { it.route?.startsWith(item.route) == true } == true,
+                            selected = destination?.hierarchy?.any { it.route == item.route } == true,
                             onClick = {
-                                    if (destination?.route?.startsWith(ROUTE_COMPOSE) == true) {
-                                        appViewModel.saveDraft()
+                                val fromCompose = destination?.route?.startsWith(ROUTE_COMPOSE) == true
+
+                                if (fromCompose) {
+                                    appViewModel.saveDraft()
+                                }
+
+                                when (item.route) {
+                                    ROUTE_DRAFTS -> {
+                                        navController.navigate(ROUTE_DRAFTS) {
+                                            popUpTo(ROUTE_DRAFTS) {
+                                                inclusive = false
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = false
+                                        }
                                     }
-                                    navController.navigate(item.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
+
+                                    ROUTE_SETTINGS -> {
+                                        navController.navigate(ROUTE_SETTINGS) {
+                                            launchSingleTop = true
+                                            restoreState = false
+                                        }
                                     }
+                                }
                             },
                             icon = item.icon,
                             label = { Text(item.label) }
@@ -176,7 +192,7 @@ fun MicroblogWriterApp(
                     ComposeScreen(uiState, appViewModel, onRequireAuth = { navController.navigate(ROUTE_SETTINGS_ACCOUNT) })
                 }
                 composable(
-                    route = "settings?focusAccount={focusAccount}",
+                    route = ROUTE_SETTINGS_WITH_ARGS,
                     arguments = listOf(navArgument("focusAccount") { type = NavType.BoolType; defaultValue = false })
                 ) { backStackEntry ->
                     SettingsScreen(
