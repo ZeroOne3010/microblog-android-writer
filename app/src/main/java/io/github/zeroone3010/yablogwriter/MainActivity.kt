@@ -6,6 +6,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
@@ -21,6 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -136,49 +144,56 @@ fun MicroblogWriterApp(
         NavItem(ROUTE_DRAFTS, "Posts") { Icon(Icons.AutoMirrored.Filled.List, null) },
         NavItem(ROUTE_SETTINGS, "Settings") { Icon(Icons.Filled.Settings, null) }
     )
+    var composeFocusMode by remember { mutableStateOf(false) }
 
     MicroblogWriterTheme(theme = uiState.settings.theme) {
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             bottomBar = {
-                NavigationBar {
-                    val navBackStackEntry by navController.currentBackStackEntryAsState()
-                    val destination = navBackStackEntry?.destination
-                    items.forEach { item ->
-                        NavigationBarItem(
-                            selected = destination?.hierarchy?.any { navDestination ->
-                                val route = navDestination.route
-                                route == item.route || route?.startsWith("${item.route}?") == true
-                            } == true,
-                            onClick = {
-                                val fromCompose = destination?.route?.startsWith(ROUTE_COMPOSE) == true
+                AnimatedVisibility(
+                    visible = !composeFocusMode,
+                    enter = fadeIn(tween(220)) + slideInVertically(tween(220)) { it / 2 },
+                    exit = fadeOut(tween(180)) + slideOutVertically(tween(220)) { it / 2 }
+                ) {
+                    NavigationBar {
+                        val navBackStackEntry by navController.currentBackStackEntryAsState()
+                        val destination = navBackStackEntry?.destination
+                        items.forEach { item ->
+                            NavigationBarItem(
+                                selected = destination?.hierarchy?.any { navDestination ->
+                                    val route = navDestination.route
+                                    route == item.route || route?.startsWith("${item.route}?") == true
+                                } == true,
+                                onClick = {
+                                    val fromCompose = destination?.route?.startsWith(ROUTE_COMPOSE) == true
 
-                                if (fromCompose) {
-                                    appViewModel.saveDraft()
-                                }
+                                    if (fromCompose) {
+                                        appViewModel.saveDraft()
+                                    }
 
-                                when (item.route) {
-                                    ROUTE_DRAFTS -> {
-                                        navController.navigate(ROUTE_DRAFTS) {
-                                            popUpTo(ROUTE_DRAFTS) {
-                                                inclusive = false
+                                    when (item.route) {
+                                        ROUTE_DRAFTS -> {
+                                            navController.navigate(ROUTE_DRAFTS) {
+                                                popUpTo(ROUTE_DRAFTS) {
+                                                    inclusive = false
+                                                }
+                                                launchSingleTop = true
+                                                restoreState = false
                                             }
-                                            launchSingleTop = true
-                                            restoreState = false
                                         }
-                                    }
 
-                                    ROUTE_SETTINGS -> {
-                                        navController.navigate(ROUTE_SETTINGS) {
-                                            launchSingleTop = true
-                                            restoreState = false
+                                        ROUTE_SETTINGS -> {
+                                            navController.navigate(ROUTE_SETTINGS) {
+                                                launchSingleTop = true
+                                                restoreState = false
+                                            }
                                         }
                                     }
-                                }
-                            },
-                            icon = item.icon,
-                            label = { Text(item.label) }
-                        )
+                                },
+                                icon = item.icon,
+                                label = { Text(item.label) }
+                            )
+                        }
                     }
                 }
             }
@@ -192,7 +207,12 @@ fun MicroblogWriterApp(
                     )
                 }
                 composable(ROUTE_COMPOSE) {
-                    ComposeScreen(uiState, appViewModel, onRequireAuth = { navController.navigate(ROUTE_SETTINGS_ACCOUNT) })
+                    ComposeScreen(
+                        uiState = uiState,
+                        vm = appViewModel,
+                        onRequireAuth = { navController.navigate(ROUTE_SETTINGS_ACCOUNT) },
+                        onFocusModeChange = { composeFocusMode = it }
+                    )
                 }
                 composable(
                     route = ROUTE_SETTINGS_WITH_ARGS,

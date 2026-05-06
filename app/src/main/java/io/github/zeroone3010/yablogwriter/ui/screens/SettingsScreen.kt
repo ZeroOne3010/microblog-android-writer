@@ -175,6 +175,12 @@ fun SettingsScreen(
                 )
             }
 
+            SettingsSection("Hint") {
+                Text("Focus mode is available in the editor.")
+                Text("• Double tap the Markdown text area to enter focus mode.")
+                Text("• Press the Android back button to exit focus mode.")
+            }
+
             Text(
                 text = saveIndicator,
                 style = MaterialTheme.typography.bodySmall,

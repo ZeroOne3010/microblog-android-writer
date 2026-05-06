@@ -1,6 +1,7 @@
 package io.github.zeroone3010.yablogwriter.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.FormatQuote
@@ -45,11 +47,13 @@ import androidx.compose.material3.Text
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.Alignment
@@ -63,6 +67,13 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateContentSize
 import io.github.zeroone3010.yablogwriter.domain.AiReviewPromptType
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.SettingsState
@@ -82,7 +93,12 @@ import io.github.zeroone3010.yablogwriter.ui.editor.wrapInCodeBlock
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
-fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Unit) {
+fun ComposeScreen(
+    uiState: AppUiState,
+    vm: AppViewModel,
+    onRequireAuth: () -> Unit,
+    onFocusModeChange: (Boolean) -> Unit = {}
+) {
     val clipboardManager = LocalClipboardManager.current
     var editorValue by remember(uiState.selectedDraft.id) {
         mutableStateOf(TextFieldValue(uiState.selectedDraft.body, TextRange(uiState.selectedDraft.body.length)))
@@ -113,6 +129,16 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
     val scrollState = rememberScrollState()
     var showStickyFormattingToolbar by remember { mutableStateOf(false) }
     var contentTopInWindow by remember { mutableStateOf(0f) }
+    var focusModeEnabled by remember { mutableStateOf(false) }
+
+    LaunchedEffect(focusModeEnabled) {
+        onFocusModeChange(focusModeEnabled)
+    }
+    DisposableEffect(Unit) {
+        onDispose { onFocusModeChange(false) }
+    }
+
+    BackHandler(enabled = focusModeEnabled) { focusModeEnabled = false }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -125,61 +151,75 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-        if (!uiState.auth.isAuthenticated) {
-            Text("Sign in is required for publish/upload actions.")
-            OutlinedButton(onClick = onRequireAuth) { Text("Go to account settings") }
-        }
-        OutlinedTextField(
-            value = uiState.selectedDraft.title,
-            onValueChange = vm::editTitle,
-            label = { Text("Title") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        val categories = if (uiState.blogCategories.isNotEmpty()) {
-            uiState.blogCategories
-        } else {
-            uiState.categoryHistory
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Categories")
-                TextButton(onClick = vm::refreshBlogCategories, enabled = uiState.auth.isAuthenticated && !uiState.blogCategoriesLoading) {
-                    Text(if (uiState.blogCategoriesLoading) "Loading..." else "Refresh")
+        AnimatedVisibility(
+            visible = !focusModeEnabled,
+            enter = fadeIn(tween(240)),
+            exit = fadeOut(tween(180))
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (!uiState.auth.isAuthenticated) {
+                    Text("Sign in is required for publish/upload actions.")
+                    OutlinedButton(onClick = onRequireAuth) { Text("Go to account settings") }
                 }
-            }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                categories.forEach { category ->
-                    FilterChip(
-                        selected = uiState.selectedDraft.categories.contains(category),
-                        onClick = { vm.toggleCategory(category) },
-                        label = { Text(category) }
-                    )
-                }
-            }
-            if (categories.isEmpty()) {
-                Text(
-                    if (uiState.auth.isAuthenticated) "No existing categories returned by Micropub config."
-                    else "Sign in to load categories from your Micro.blog."
+                OutlinedTextField(
+                    value = uiState.selectedDraft.title,
+                    onValueChange = vm::editTitle,
+                    label = { Text("Title") },
+                    modifier = Modifier.fillMaxWidth()
                 )
+
+                val categories = if (uiState.blogCategories.isNotEmpty()) {
+                    uiState.blogCategories
+                } else {
+                    uiState.categoryHistory
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Categories")
+                        TextButton(onClick = vm::refreshBlogCategories, enabled = uiState.auth.isAuthenticated && !uiState.blogCategoriesLoading) {
+                            Text(if (uiState.blogCategoriesLoading) "Loading..." else "Refresh")
+                        }
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        categories.forEach { category ->
+                            FilterChip(
+                                selected = uiState.selectedDraft.categories.contains(category),
+                                onClick = { vm.toggleCategory(category) },
+                                label = { Text(category) }
+                            )
+                        }
+                    }
+                    if (categories.isEmpty()) {
+                        Text(
+                            if (uiState.auth.isAuthenticated) "No existing categories returned by Micropub config."
+                            else "Sign in to load categories from your Micro.blog."
+                        )
+                    }
+                }
             }
         }
 
-            if (uiState.previewMode) {
+            if (uiState.previewMode && !focusModeEnabled) {
             Text("Preview")
             Divider()
             Text(uiState.selectedDraft.body)
         } else {
-            Box(
-                modifier = Modifier.onGloballyPositioned { coordinates ->
-                    showStickyFormattingToolbar = coordinates.positionInWindow().y < contentTopInWindow
-                }
+            AnimatedVisibility(
+                visible = !focusModeEnabled,
+                enter = fadeIn(tween(220)) + expandVertically(animationSpec = tween(260), expandFrom = Alignment.Top),
+                exit = fadeOut(tween(160)) + shrinkVertically(animationSpec = tween(240), shrinkTowards = Alignment.Top)
             ) {
-                EditorFormattingToolbar(editorValue = editorValue, clipboardManager = clipboardManager, vm = vm) {
-                    editorValue = it
+                Box(
+                    modifier = Modifier.onGloballyPositioned { coordinates ->
+                        showStickyFormattingToolbar = coordinates.positionInWindow().y < contentTopInWindow
+                    }
+                ) {
+                    EditorFormattingToolbar(editorValue = editorValue, clipboardManager = clipboardManager, vm = vm) {
+                        editorValue = it
+                    }
                 }
             }
 
@@ -189,7 +229,12 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                     editorValue = it
                     vm.editBody(it.text)
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(animationSpec = tween(260))
+                    .pointerInput(Unit) {
+                        detectTapGestures(onDoubleTap = { focusModeEnabled = true })
+                    },
                 minLines = 12,
                 label = { Text("Markdown") }
             )
@@ -227,13 +272,16 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             }
         )
 
-        Text(
+        AnimatedVisibility(visible = !focusModeEnabled, enter = fadeIn(), exit = fadeOut()) {
+            Text(
             text = "Words: ${uiState.markdownWordCount} • Reading time: ${uiState.readingTimeMinutes} min",
             style = MaterialTheme.typography.bodySmall,
             fontSize = 12.sp
         )
+        }
 
-        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+        AnimatedVisibility(visible = !focusModeEnabled, enter = fadeIn(tween(240)), exit = fadeOut(tween(160))) {
+            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -270,10 +318,12 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                 }
             }
         }
+        }
 
         val aiReviewAvailable = uiState.settings.aiEnabled && uiState.settings.aiApiKey.isNotBlank()
         var showAiDialog by remember { mutableStateOf(false) }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        AnimatedVisibility(visible = !focusModeEnabled, enter = fadeIn(tween(220)), exit = fadeOut(tween(160))) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             if (aiReviewAvailable) {
                 TextButton(onClick = { showAiDialog = true }, enabled = !uiState.aiReviewInProgress, modifier = Modifier.weight(1f)) {
                     if (uiState.aiReviewInProgress) {
@@ -284,6 +334,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
                 }
             }
             Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated, modifier = Modifier.weight(1f)) { Text("Publish") }
+        }
         }
 
         if (showAiDialog) {
@@ -300,7 +351,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             )
         }
 
-        if (uiState.aiReviewInProgress || uiState.aiReviewOutput.isNotBlank()) {
+        if (!focusModeEnabled && (uiState.aiReviewInProgress || uiState.aiReviewOutput.isNotBlank())) {
             Text("AI suggestions")
             OutlinedTextField(
                 value = if (uiState.aiReviewInProgress && uiState.aiReviewOutput.isBlank()) "Running AI review..." else uiState.aiReviewOutput,
@@ -312,7 +363,7 @@ fun ComposeScreen(uiState: AppUiState, vm: AppViewModel, onRequireAuth: () -> Un
             )
         }
     }
-        if (!uiState.previewMode && showStickyFormattingToolbar) {
+        if (!focusModeEnabled && !uiState.previewMode && showStickyFormattingToolbar) {
             Surface(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
