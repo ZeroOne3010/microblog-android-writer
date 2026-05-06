@@ -343,7 +343,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun saveDraft() {
         cancelPendingAutosave()
         val saved = draftRepo.saveDraft(_uiState.value.selectedDraft)
-        _uiState.update { it.copy(selectedDraft = saved, statusMessage = "Post saved locally") }
+        _uiState.update { it.copy(selectedDraft = saved) }
         refreshDrafts()
     }
 
