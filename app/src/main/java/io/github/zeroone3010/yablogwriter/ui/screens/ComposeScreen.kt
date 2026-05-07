@@ -43,6 +43,7 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.runtime.Composable
@@ -67,12 +68,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.animateContentSize
+import kotlinx.coroutines.delay
 import io.github.zeroone3010.yablogwriter.domain.AiReviewPromptType
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.SettingsState
@@ -129,9 +131,17 @@ fun ComposeScreen(
     var showStickyFormattingToolbar by remember { mutableStateOf(false) }
     var contentTopInWindow by remember { mutableStateOf(0f) }
     var focusModeEnabled by remember { mutableStateOf(false) }
+    var focusEditorExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(focusModeEnabled) {
         onFocusModeChange(focusModeEnabled)
+        if (focusModeEnabled) {
+            focusEditorExpanded = false
+            delay(150)
+            focusEditorExpanded = true
+        } else {
+            focusEditorExpanded = false
+        }
     }
     DisposableEffect(Unit) {
         onDispose { onFocusModeChange(false) }
@@ -153,7 +163,7 @@ fun ComposeScreen(
         AnimatedVisibility(
             visible = !focusModeEnabled,
             enter = fadeIn(tween(240)),
-            exit = fadeOut(tween(180))
+            exit = fadeOut(tween(150))
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (!uiState.auth.isAuthenticated) {
@@ -209,7 +219,7 @@ fun ComposeScreen(
             AnimatedVisibility(
                 visible = !focusModeEnabled,
                 enter = fadeIn(tween(220)) + expandVertically(animationSpec = tween(260), expandFrom = Alignment.Top),
-                exit = fadeOut(tween(160)) + shrinkVertically(animationSpec = tween(240), shrinkTowards = Alignment.Top)
+                exit = fadeOut(tween(150)) + shrinkVertically(animationSpec = tween(150), shrinkTowards = Alignment.Top)
             ) {
                 Box(
                     modifier = Modifier.onGloballyPositioned { coordinates ->
@@ -230,8 +240,8 @@ fun ComposeScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(if (focusModeEnabled) Modifier.height(0.dp).weight(1f) else Modifier)
-                    .animateContentSize(animationSpec = tween(260)),
+                    .then(if (focusEditorExpanded) Modifier.height(0.dp).weight(1f) else Modifier)
+                    .animateContentSize(animationSpec = tween(100)),
                 minLines = 12,
                 label = { Text(if (focusModeEnabled) uiState.selectedDraft.title.ifBlank { "Untitled draft" } else "Markdown") }
             )
@@ -279,7 +289,10 @@ fun ComposeScreen(
                 style = MaterialTheme.typography.bodySmall,
                 fontSize = 12.sp
             )
-            TextButton(onClick = { focusModeEnabled = !focusModeEnabled }) {
+            TextButton(
+                onClick = { focusModeEnabled = !focusModeEnabled },
+                colors = TextButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+            ) {
                 Text(if (focusModeEnabled) "End focus mode" else "Focus Mode")
             }
         }
