@@ -12,12 +12,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.FormatQuote
@@ -53,7 +53,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.Alignment
@@ -147,7 +146,7 @@ fun ComposeScreen(
                 .onGloballyPositioned { coordinates ->
                     contentTopInWindow = coordinates.positionInWindow().y
                 }
-                .verticalScroll(scrollState)
+                .then(if (focusModeEnabled) Modifier else Modifier.verticalScroll(scrollState))
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -231,12 +230,10 @@ fun ComposeScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .animateContentSize(animationSpec = tween(260))
-                    .pointerInput(Unit) {
-                        detectTapGestures(onDoubleTap = { focusModeEnabled = true })
-                    },
+                    .then(if (focusModeEnabled) Modifier.height(0.dp).weight(1f) else Modifier)
+                    .animateContentSize(animationSpec = tween(260)),
                 minLines = 12,
-                label = { Text("Markdown") }
+                label = { Text(if (focusModeEnabled) uiState.selectedDraft.title.ifBlank { "Untitled draft" } else "Markdown") }
             )
         }
 
@@ -272,12 +269,19 @@ fun ComposeScreen(
             }
         )
 
-        AnimatedVisibility(visible = !focusModeEnabled, enter = fadeIn(), exit = fadeOut()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
-            text = "Words: ${uiState.markdownWordCount} • Reading time: ${uiState.readingTimeMinutes} min",
-            style = MaterialTheme.typography.bodySmall,
-            fontSize = 12.sp
-        )
+                text = "Words: ${uiState.markdownWordCount} • Reading time: ${uiState.readingTimeMinutes} min",
+                style = MaterialTheme.typography.bodySmall,
+                fontSize = 12.sp
+            )
+            TextButton(onClick = { focusModeEnabled = !focusModeEnabled }) {
+                Text(if (focusModeEnabled) "End focus mode" else "Focus Mode")
+            }
         }
 
         AnimatedVisibility(visible = !focusModeEnabled, enter = fadeIn(tween(240)), exit = fadeOut(tween(160))) {
