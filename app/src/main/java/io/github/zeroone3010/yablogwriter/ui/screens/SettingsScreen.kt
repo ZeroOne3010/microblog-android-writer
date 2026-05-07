@@ -28,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.dp
 import io.github.zeroone3010.yablogwriter.BuildConfig
-import io.github.zeroone3010.yablogwriter.domain.AppSettings
 import io.github.zeroone3010.yablogwriter.domain.AppTheme
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.TimestampFormat
@@ -43,11 +42,6 @@ fun SettingsScreen(
     onLogout: () -> Unit
 ) {
     val settings = uiState.settings
-
-    fun updateSettings(updated: AppSettings) {
-        vm.updateSettings(updated)
-    }
-
 
     Scaffold { innerPadding ->
         Column(
@@ -74,12 +68,12 @@ fun SettingsScreen(
                 DeferredSaveTextField(
                     value = settings.microblogApiBaseUrl,
                     label = "Micropub base URL",
-                    onCommit = { updateSettings(settings.copy(microblogApiBaseUrl = it)) }
+                    onCommit = { vm.updateSettings { copy(microblogApiBaseUrl = it) } }
                 )
                 DeferredSaveTextField(
                     value = settings.microblogMediaEndpoint,
                     label = "Media endpoint (optional override)",
-                    onCommit = { updateSettings(settings.copy(microblogMediaEndpoint = it)) }
+                    onCommit = { vm.updateSettings { copy(microblogMediaEndpoint = it) } }
                 )
             }
 
@@ -87,23 +81,23 @@ fun SettingsScreen(
                 ThemeRadioOption(
                     label = "System default",
                     selected = settings.theme == AppTheme.SYSTEM,
-                    onClick = { updateSettings(settings.copy(theme = AppTheme.SYSTEM)) }
+                    onClick = { vm.updateSettings { copy(theme = AppTheme.SYSTEM) } }
                 )
                 ThemeRadioOption(
                     label = "Light mode",
                     selected = settings.theme == AppTheme.LIGHT,
-                    onClick = { updateSettings(settings.copy(theme = AppTheme.LIGHT)) }
+                    onClick = { vm.updateSettings { copy(theme = AppTheme.LIGHT) } }
                 )
                 ThemeRadioOption(
                     label = "Dark mode",
                     selected = settings.theme == AppTheme.DARK,
-                    onClick = { updateSettings(settings.copy(theme = AppTheme.DARK)) }
+                    onClick = { vm.updateSettings { copy(theme = AppTheme.DARK) } }
                 )
             }
 
             SettingsSection("Category reminder") {
                 RowSwitch("Remind me to add categories", settings.categoryReminderEnabled) {
-                    updateSettings(settings.copy(categoryReminderEnabled = it))
+                    vm.updateSettings { copy(categoryReminderEnabled = it) }
                 }
             }
 
@@ -111,23 +105,23 @@ fun SettingsScreen(
                 ThemeRadioOption(
                     label = "YYYY-MM-DD HH:MM",
                     selected = settings.timestampFormat == TimestampFormat.ISO_24H,
-                    onClick = { updateSettings(settings.copy(timestampFormat = TimestampFormat.ISO_24H)) }
+                    onClick = { vm.updateSettings { copy(timestampFormat = TimestampFormat.ISO_24H) } }
                 )
                 ThemeRadioOption(
                     label = "D.M.Y HH:MM",
                     selected = settings.timestampFormat == TimestampFormat.DMY_24H,
-                    onClick = { updateSettings(settings.copy(timestampFormat = TimestampFormat.DMY_24H)) }
+                    onClick = { vm.updateSettings { copy(timestampFormat = TimestampFormat.DMY_24H) } }
                 )
                 ThemeRadioOption(
                     label = "M/D/Y h:MM a",
                     selected = settings.timestampFormat == TimestampFormat.MDY_12H,
-                    onClick = { updateSettings(settings.copy(timestampFormat = TimestampFormat.MDY_12H)) }
+                    onClick = { vm.updateSettings { copy(timestampFormat = TimestampFormat.MDY_12H) } }
                 )
             }
 
             SettingsSection("AI settings") {
                 var aiAdvancedExpanded by remember { mutableStateOf(false) }
-                RowSwitch("Enable AI review", settings.aiEnabled) { updateSettings(settings.copy(aiEnabled = it)) }
+                RowSwitch("Enable AI review", settings.aiEnabled) { vm.updateSettings { copy(aiEnabled = it) } }
                 OutlinedButton(
                     onClick = { aiAdvancedExpanded = !aiAdvancedExpanded },
                     modifier = Modifier.fillMaxWidth()
@@ -139,12 +133,12 @@ fun SettingsScreen(
                     DeferredSaveTextField(
                         value = settings.aiProviderBaseUrl,
                         label = "AI provider base URL",
-                        onCommit = { updateSettings(settings.copy(aiProviderBaseUrl = it)) }
+                        onCommit = { vm.updateSettings { copy(aiProviderBaseUrl = it) } }
                     )
                     DeferredSaveTextField(
                         value = settings.aiApiKey,
                         label = "Provider API key",
-                        onCommit = { updateSettings(settings.copy(aiApiKey = it)) }
+                        onCommit = { vm.updateSettings { copy(aiApiKey = it) } }
                     )
                 }
             }
