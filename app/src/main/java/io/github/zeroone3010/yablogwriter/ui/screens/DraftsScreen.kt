@@ -8,9 +8,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -29,7 +33,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.Draft
@@ -130,10 +138,29 @@ private fun DraftCard(
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(draft.title.ifBlank { "Untitled post" }, style = MaterialTheme.typography.titleMedium)
+                    val metadataColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        TinyMetadataIcon(Icons.Outlined.Description, tint = metadataColor)
+                        Text(
+                            text = "${draftStateSubtitle(draft)} · Local",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = metadataColor
+                        )
+                    }
                     Text(
-                        text = "Last updated ${formatTimestamp(draft.updated, timestampFormat)} · ${draftStateSubtitle(draft)}",
-                        style = MaterialTheme.typography.bodySmall
+                        draft.title.ifBlank { "Untitled post" },
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 20.sp
+                        )
+                    )
+                    Text(
+                        text = draft.body.lineSequence().firstOrNull { it.isNotBlank() }
+                            ?: "Start writing your thoughts…",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = metadataColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
                 Column(modifier = Modifier.wrapContentSize()) {
@@ -152,11 +179,20 @@ private fun DraftCard(
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                DraftTag("Draft")
-                DraftTag("Local")
+            val metadataColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    TinyMetadataIcon(Icons.Outlined.AccessTime, tint = metadataColor)
+                    Text(
+                        text = "Updated ${formatTimestamp(draft.updated, timestampFormat)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = metadataColor
+                    )
+                }
                 if (draft.categories.isEmpty()) {
                     DraftTag("No category")
+                } else {
+                    DraftTag(draft.categories.first())
                 }
             }
         }
@@ -165,13 +201,25 @@ private fun DraftCard(
 
 @Composable
 private fun DraftTag(label: String) {
+    val metadataColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
     Card {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            TinyMetadataIcon(Icons.Outlined.Folder, tint = metadataColor)
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            color = metadataColor
         )
+        }
     }
+}
+
+@Composable
+private fun TinyMetadataIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color) {
+    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp).padding(top = 1.dp))
 }
 
 private fun draftStateSubtitle(draft: Draft): String = when (draft.status) {
