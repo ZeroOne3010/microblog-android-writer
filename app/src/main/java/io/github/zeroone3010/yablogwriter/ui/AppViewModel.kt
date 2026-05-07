@@ -489,8 +489,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateSettings(settings: SettingsState) {
-        settingsRepo.save(settings)
-        _uiState.update { it.copy(settings = settings, settingsLastSavedAt = Instant.now()) }
+        updateSettings { settings }
+    }
+
+    fun updateSettings(update: SettingsState.() -> SettingsState) {
+        _uiState.update { current ->
+            val updated = current.settings.update()
+            settingsRepo.save(updated)
+            current.copy(settings = updated, settingsLastSavedAt = Instant.now())
+        }
     }
 
     fun clearStatusMessage() {
