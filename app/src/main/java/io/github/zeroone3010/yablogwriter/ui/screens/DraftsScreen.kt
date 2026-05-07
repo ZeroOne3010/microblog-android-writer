@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -34,11 +35,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.BorderStroke
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.Draft
 import io.github.zeroone3010.yablogwriter.domain.DraftStatus
@@ -85,8 +88,20 @@ fun DraftsScreen(
                 item { Text("No posts yet. Write one!") }
             } else {
                 items(filteredPosts, key = { it.id }) { post ->
+                    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.35f
+                    val postCardContainerColor = MaterialTheme.colorScheme.surface.copy(
+                        alpha = if (isDarkTheme) 0.98f else 0.92f
+                    )
+                    val postCardBorderColor = MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = if (isDarkTheme) 0.24f else 0.16f
+                    )
                     if (post.status == DraftStatus.PUBLISHED) {
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = postCardContainerColor),
+                            border = BorderStroke(0.6.dp, postCardBorderColor),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
                             Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(post.title.ifBlank { "Untitled post" })
                                 Text("Categories: ${post.categories.joinToString().ifBlank { "(none)" }}")
@@ -129,11 +144,24 @@ private fun DraftCard(
     onDelete: () -> Unit
 ) {
     var menuExpanded by remember(draft.id) { mutableStateOf(false) }
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.35f
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onOpen)
+            .clickable(onClick = onOpen),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(
+                alpha = if (isDarkTheme) 0.98f else 0.92f
+            )
+        ),
+        border = BorderStroke(
+            width = 0.6.dp,
+            color = MaterialTheme.colorScheme.onSurface.copy(
+                alpha = if (isDarkTheme) 0.24f else 0.16f
+            )
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

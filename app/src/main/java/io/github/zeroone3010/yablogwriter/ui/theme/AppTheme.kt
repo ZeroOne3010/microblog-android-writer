@@ -11,6 +11,7 @@ import io.github.zeroone3010.yablogwriter.domain.AppTheme
 private val AccentOrange = Color(0xFFE79254)
 private val MutedBronze = Color(0xFFB88A62)
 private val LogoDark = Color(0xFF192333)
+private val SurfaceDark = Color(0xFF161F2E)
 
 private val LightColors = lightColorScheme(
     primary = AccentOrange,
@@ -23,7 +24,7 @@ private val DarkColors = darkColorScheme(
     secondary = MutedBronze,
     tertiary = MutedBronze,
     background = LogoDark,
-    surface = LogoDark
+    surface = SurfaceDark
 )
 
 @Composable
