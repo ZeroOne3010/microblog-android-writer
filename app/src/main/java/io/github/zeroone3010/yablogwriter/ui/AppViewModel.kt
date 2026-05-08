@@ -187,6 +187,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 drafts = drafts,
                 selectedDraft = selectedDraft,
                 categoryHistory = categories,
+                aiReviewOutput = selectedDraft.aiReviewOutput,
                 markdownWordCount = words,
                 readingTimeMinutes = readingTime(words)
             )
@@ -209,6 +210,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val words = wordCount(created.body)
             it.copy(
                 selectedDraft = created,
+                aiReviewOutput = created.aiReviewOutput,
                 markdownWordCount = words,
                 readingTimeMinutes = readingTime(words),
                 statusMessage = "New post created"
@@ -368,13 +370,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun selectDraft(id: String) {
         val selected = _uiState.value.drafts.find { it.id == id } ?: return
         _uiState.update {
-            it.copy(selectedDraft = selected, markdownWordCount = wordCount(selected.body), readingTimeMinutes = readingTime(wordCount(selected.body)))
+            it.copy(selectedDraft = selected, aiReviewOutput = selected.aiReviewOutput, markdownWordCount = wordCount(selected.body), readingTimeMinutes = readingTime(wordCount(selected.body)))
         }
     }
 
     fun runAiReview(promptType: AiReviewPromptType, customPrompt: String? = null, customModel: String? = null) {
         val state = _uiState.value
         if (!state.settings.aiEnabled) return
+        val reviewedDraftId = state.selectedDraft.id
         val title = state.selectedDraft.title.ifBlank { "Untitled" }
         val contents = state.selectedDraft.body
         val selectedPromptTemplate = when (promptType) {
@@ -409,7 +412,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val result = ai.review(state.settings.aiProviderBaseUrl, state.settings.aiApiKey, selectedModel, prompt)
             _uiState.update { current ->
                 result.fold(
-                    onSuccess = { output -> current.copy(aiReviewOutput = output, aiReviewInProgress = false, statusMessage = "AI review complete") },
+                    onSuccess = { output ->
+                        val updatedDrafts = current.drafts.map { draft ->
+                            if (draft.id == reviewedDraftId) draft.copy(aiReviewOutput = output) else draft
+                        }
+                        val updatedSelectedDraft = if (current.selectedDraft.id == reviewedDraftId) {
+                            current.selectedDraft.copy(aiReviewOutput = output)
+                        } else {
+                            current.selectedDraft
+                        }
+                        current.copy(
+                            drafts = updatedDrafts,
+                            selectedDraft = updatedSelectedDraft,
+                            aiReviewOutput = if (current.selectedDraft.id == reviewedDraftId) output else current.aiReviewOutput,
+                            aiReviewInProgress = false,
+                            statusMessage = "AI review complete"
+                        )
+                    },
                     onFailure = { err ->
                         val details = mapAiError(err)
                         current.copy(
@@ -419,6 +438,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 )
+            }
+            if (result.isSuccess) {
+                val reviewedDraft = _uiState.value.drafts.firstOrNull { it.id == reviewedDraftId }
+                if (reviewedDraft != null) {
+                    withContext(Dispatchers.IO) {
+                        draftRepo.saveDraft(reviewedDraft)
+                    }
+                    refreshDrafts()
+                }
             }
         }
     }

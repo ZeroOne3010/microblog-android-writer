@@ -5,6 +5,7 @@ import io.github.zeroone3010.yablogwriter.domain.Draft
 import io.github.zeroone3010.yablogwriter.domain.DraftStatus
 import java.io.File
 import java.time.Instant
+import java.util.Base64
 import java.util.Locale
 
 class MarkdownDraftRepository(private val context: Context) {
@@ -115,7 +116,13 @@ class MarkdownDraftRepository(private val context: Context) {
             status = map["status"]?.let { parseStatus(it) } ?: DraftStatus.DRAFT,
             created = map["created"]?.let { Instant.parse(it) } ?: Instant.now(),
             updated = map["updated"]?.let { Instant.parse(it) } ?: Instant.now(),
-            postId = map["post_id"]?.takeUnless { it == "null" }
+            postId = map["post_id"]?.takeUnless { it == "null" },
+            aiReviewOutput = when {
+                !map["ai_review_output_b64"].isNullOrBlank() && map["ai_review_output_b64"] != "null" -> {
+                    map["ai_review_output_b64"].orEmpty().decodeBase64()
+                }
+                else -> map["ai_review_output"]?.takeUnless { it == "null" }?.decodeFrontMatterTextLegacy().orEmpty()
+            }
         )
     }
 
@@ -132,6 +139,7 @@ class MarkdownDraftRepository(private val context: Context) {
         appendLine("created: ${draft.created}")
         appendLine("updated: ${draft.updated}")
         appendLine("post_id: ${draft.postId ?: "null"}")
+        appendLine("ai_review_output_b64: ${draft.aiReviewOutput.encodeBase64().ifBlank { "null" }}")
         appendLine("---")
         appendLine()
         append(draft.body)
@@ -154,4 +162,35 @@ class MarkdownDraftRepository(private val context: Context) {
     private fun sanitizeToAlphanumeric(text: String): String = text
         .lowercase(Locale.US)
         .replace(Regex("[^a-z0-9]"), "")
+
+    private fun String.encodeBase64(): String = Base64.getEncoder().encodeToString(toByteArray(Charsets.UTF_8))
+
+    private fun String.decodeBase64(): String = runCatching {
+        String(Base64.getDecoder().decode(this), Charsets.UTF_8)
+    }.getOrDefault("")
+
+    // Compatibility path for previously stored ai_review_output values.
+    private fun String.decodeFrontMatterTextLegacy(): String = buildString(length) {
+        var i = 0
+        while (i < length) {
+            val c = this@decodeFrontMatterTextLegacy[i]
+            if (c == '\\' && i + 1 < length) {
+                val next = this@decodeFrontMatterTextLegacy[i + 1]
+                when (next) {
+                    'n' -> {
+                        append('\n')
+                        i += 2
+                        continue
+                    }
+                    '\\' -> {
+                        append('\\')
+                        i += 2
+                        continue
+                    }
+                }
+            }
+            append(c)
+            i++
+        }
+    }
 }

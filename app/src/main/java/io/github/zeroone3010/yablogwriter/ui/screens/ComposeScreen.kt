@@ -120,9 +120,11 @@ fun ComposeScreen(
     }
 
     val aiReviewOutputRequester = remember { BringIntoViewRequester() }
+    var aiSuggestionsExpanded by remember(uiState.selectedDraft.id) { mutableStateOf(false) }
 
     LaunchedEffect(uiState.aiReviewInProgress) {
         if (uiState.aiReviewInProgress) {
+            aiSuggestionsExpanded = true
             aiReviewOutputRequester.bringIntoView()
         }
     }
@@ -369,15 +371,30 @@ fun ComposeScreen(
         }
 
         if (!focusModeEnabled && (uiState.aiReviewInProgress || uiState.aiReviewOutput.isNotBlank())) {
-            Text("AI suggestions")
-            OutlinedTextField(
-                value = if (uiState.aiReviewInProgress && uiState.aiReviewOutput.isBlank()) "Running AI review..." else uiState.aiReviewOutput,
-                onValueChange = {},
-                readOnly = true,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 420.dp).bringIntoViewRequester(aiReviewOutputRequester),
-                minLines = 8,
-                maxLines = 20
-            )
+            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("AI suggestions")
+                        TextButton(onClick = { aiSuggestionsExpanded = !aiSuggestionsExpanded }) {
+                            Text(if (aiSuggestionsExpanded) "Hide" else "Show")
+                        }
+                    }
+                    AnimatedVisibility(visible = aiSuggestionsExpanded) {
+                        OutlinedTextField(
+                            value = if (uiState.aiReviewInProgress && uiState.aiReviewOutput.isBlank()) "Running AI review..." else uiState.aiReviewOutput,
+                            onValueChange = {},
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 420.dp).bringIntoViewRequester(aiReviewOutputRequester),
+                            minLines = 8,
+                            maxLines = 20
+                        )
+                    }
+                }
+            }
         }
     }
         if (!focusModeEnabled && !uiState.previewMode && showStickyFormattingToolbar) {
