@@ -115,7 +115,8 @@ class MarkdownDraftRepository(private val context: Context) {
             status = map["status"]?.let { parseStatus(it) } ?: DraftStatus.DRAFT,
             created = map["created"]?.let { Instant.parse(it) } ?: Instant.now(),
             updated = map["updated"]?.let { Instant.parse(it) } ?: Instant.now(),
-            postId = map["post_id"]?.takeUnless { it == "null" }
+            postId = map["post_id"]?.takeUnless { it == "null" },
+            aiReviewOutput = map["ai_review_output"]?.takeUnless { it == "null" }?.decodeFrontMatterText().orEmpty()
         )
     }
 
@@ -132,6 +133,7 @@ class MarkdownDraftRepository(private val context: Context) {
         appendLine("created: ${draft.created}")
         appendLine("updated: ${draft.updated}")
         appendLine("post_id: ${draft.postId ?: "null"}")
+        appendLine("ai_review_output: ${draft.aiReviewOutput.encodeFrontMatterText().ifBlank { "null" }}")
         appendLine("---")
         appendLine()
         append(draft.body)
@@ -154,4 +156,8 @@ class MarkdownDraftRepository(private val context: Context) {
     private fun sanitizeToAlphanumeric(text: String): String = text
         .lowercase(Locale.US)
         .replace(Regex("[^a-z0-9]"), "")
+
+    private fun String.encodeFrontMatterText(): String = replace("\\", "\\\\").replace("\n", "\\n")
+
+    private fun String.decodeFrontMatterText(): String = replace("\\n", "\n").replace("\\\\", "\\")
 }

@@ -12,7 +12,8 @@ data class Draft(
     val status: DraftStatus = DraftStatus.DRAFT,
     val created: Instant = Instant.now(),
     val updated: Instant = Instant.now(),
-    val postId: String? = null
+    val postId: String? = null,
+    val aiReviewOutput: String = ""
 )
 
 enum class DraftStatus { DRAFT, PUBLISHED, PENDING_UPLOAD, PENDING_PUBLISH }

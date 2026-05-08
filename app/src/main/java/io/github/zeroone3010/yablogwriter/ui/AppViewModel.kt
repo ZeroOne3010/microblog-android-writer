@@ -187,6 +187,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 drafts = drafts,
                 selectedDraft = selectedDraft,
                 categoryHistory = categories,
+                aiReviewOutput = selectedDraft.aiReviewOutput,
                 markdownWordCount = words,
                 readingTimeMinutes = readingTime(words)
             )
@@ -209,6 +210,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val words = wordCount(created.body)
             it.copy(
                 selectedDraft = created,
+                aiReviewOutput = created.aiReviewOutput,
                 markdownWordCount = words,
                 readingTimeMinutes = readingTime(words),
                 statusMessage = "New post created"
@@ -368,7 +370,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun selectDraft(id: String) {
         val selected = _uiState.value.drafts.find { it.id == id } ?: return
         _uiState.update {
-            it.copy(selectedDraft = selected, markdownWordCount = wordCount(selected.body), readingTimeMinutes = readingTime(wordCount(selected.body)))
+            it.copy(selectedDraft = selected, aiReviewOutput = selected.aiReviewOutput, markdownWordCount = wordCount(selected.body), readingTimeMinutes = readingTime(wordCount(selected.body)))
         }
     }
 
@@ -409,7 +411,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val result = ai.review(state.settings.aiProviderBaseUrl, state.settings.aiApiKey, selectedModel, prompt)
             _uiState.update { current ->
                 result.fold(
-                    onSuccess = { output -> current.copy(aiReviewOutput = output, aiReviewInProgress = false, statusMessage = "AI review complete") },
+                    onSuccess = { output ->
+                        current.copy(
+                            selectedDraft = current.selectedDraft.copy(aiReviewOutput = output),
+                            aiReviewOutput = output,
+                            aiReviewInProgress = false,
+                            statusMessage = "AI review complete"
+                        )
+                    },
                     onFailure = { err ->
                         val details = mapAiError(err)
                         current.copy(
@@ -419,6 +428,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 )
+            }
+            if (result.isSuccess) {
+                scheduleAutosave(_uiState.value.selectedDraft)
             }
         }
     }
