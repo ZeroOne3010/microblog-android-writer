@@ -377,6 +377,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun runAiReview(promptType: AiReviewPromptType, customPrompt: String? = null, customModel: String? = null) {
         val state = _uiState.value
         if (!state.settings.aiEnabled) return
+        val reviewedDraftId = state.selectedDraft.id
         val title = state.selectedDraft.title.ifBlank { "Untitled" }
         val contents = state.selectedDraft.body
         val selectedPromptTemplate = when (promptType) {
@@ -412,9 +413,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { current ->
                 result.fold(
                     onSuccess = { output ->
+                        val updatedDrafts = current.drafts.map { draft ->
+                            if (draft.id == reviewedDraftId) draft.copy(aiReviewOutput = output) else draft
+                        }
+                        val updatedSelectedDraft = if (current.selectedDraft.id == reviewedDraftId) {
+                            current.selectedDraft.copy(aiReviewOutput = output)
+                        } else {
+                            current.selectedDraft
+                        }
                         current.copy(
-                            selectedDraft = current.selectedDraft.copy(aiReviewOutput = output),
-                            aiReviewOutput = output,
+                            drafts = updatedDrafts,
+                            selectedDraft = updatedSelectedDraft,
+                            aiReviewOutput = if (current.selectedDraft.id == reviewedDraftId) output else current.aiReviewOutput,
                             aiReviewInProgress = false,
                             statusMessage = "AI review complete"
                         )
@@ -430,7 +440,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             if (result.isSuccess) {
-                scheduleAutosave(_uiState.value.selectedDraft)
+                val reviewedDraft = _uiState.value.drafts.firstOrNull { it.id == reviewedDraftId }
+                if (reviewedDraft != null) {
+                    withContext(Dispatchers.IO) {
+                        draftRepo.saveDraft(reviewedDraft)
+                    }
+                    refreshDrafts()
+                }
             }
         }
     }
