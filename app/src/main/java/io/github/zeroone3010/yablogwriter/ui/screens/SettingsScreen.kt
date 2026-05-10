@@ -33,7 +33,7 @@ import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.TimestampFormat
 import io.github.zeroone3010.yablogwriter.ui.AppViewModel
 import java.time.Instant
-import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -173,10 +173,10 @@ private fun formatBuildTime(rawBuildTime: String): String {
     if (rawBuildTime.isBlank() || rawBuildTime == "null") return "debug build"
     return runCatching {
         Instant.parse(rawBuildTime)
-            .atZone(ZoneId.systemDefault())
+            .atOffset(ZoneOffset.UTC)
             .withSecond(0)
             .withNano(0)
-            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'"))
     }.getOrElse {
         rawBuildTime.substringBefore('.')
     }
