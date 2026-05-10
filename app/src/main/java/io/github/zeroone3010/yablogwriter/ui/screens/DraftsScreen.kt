@@ -91,7 +91,25 @@ fun DraftsScreen(
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (filteredPosts.isEmpty()) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp)) {
+                    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.35f
+                    val postCardContainerColor = MaterialTheme.colorScheme.surface.copy(
+                        alpha = if (isDarkTheme) 0.98f else 0.92f
+                    )
+                    val postCardBorderColor = MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = if (isDarkTheme) 0.24f else 0.16f
+                    )
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 120.dp)
+                            .clickable {
+                                vm.createNewPost()
+                                onOpenEditor()
+                            },
+                        colors = CardDefaults.cardColors(containerColor = postCardContainerColor),
+                        border = BorderStroke(0.6.dp, postCardBorderColor),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
                         Column(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
