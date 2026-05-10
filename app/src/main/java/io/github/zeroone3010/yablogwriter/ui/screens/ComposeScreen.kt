@@ -283,14 +283,16 @@ fun ComposeScreen(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = if (focusModeEnabled) Arrangement.End else Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Words: ${uiState.markdownWordCount} • Reading time: ${uiState.readingTimeMinutes} min",
-                style = MaterialTheme.typography.bodySmall,
-                fontSize = 12.sp
-            )
+            if (!focusModeEnabled) {
+                Text(
+                    text = "Words: ${uiState.markdownWordCount} • Reading time: ${uiState.readingTimeMinutes} min",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 12.sp
+                )
+            }
             TextButton(
                 onClick = { focusModeEnabled = !focusModeEnabled },
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)

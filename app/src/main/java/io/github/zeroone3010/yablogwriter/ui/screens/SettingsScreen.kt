@@ -32,6 +32,9 @@ import io.github.zeroone3010.yablogwriter.domain.AppTheme
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
 import io.github.zeroone3010.yablogwriter.domain.TimestampFormat
 import io.github.zeroone3010.yablogwriter.ui.AppViewModel
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun SettingsScreen(
@@ -152,7 +155,7 @@ fun SettingsScreen(
                 )
             }
 
-            val buildTime = BuildConfig.BUILD_TIME_UTC.takeUnless { it.isBlank() || it == "null" } ?: "debug build"
+            val buildTime = formatBuildTime(BuildConfig.BUILD_TIME_UTC)
             val commit = BuildConfig.GIT_COMMIT_SHORT.takeUnless { it.isBlank() || it == "null" } ?: "local"
             Text(
                 text = "Build: $buildTime • $commit",
@@ -163,6 +166,19 @@ fun SettingsScreen(
                     .padding(top = 8.dp, bottom = 4.dp)
             )
         }
+    }
+}
+
+private fun formatBuildTime(rawBuildTime: String): String {
+    if (rawBuildTime.isBlank() || rawBuildTime == "null") return "debug build"
+    return runCatching {
+        Instant.parse(rawBuildTime)
+            .atOffset(ZoneOffset.UTC)
+            .withSecond(0)
+            .withNano(0)
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'"))
+    }.getOrElse {
+        rawBuildTime.substringBefore('.')
     }
 }
 
