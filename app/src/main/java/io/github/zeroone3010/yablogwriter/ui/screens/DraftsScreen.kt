@@ -25,7 +25,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.Card
@@ -137,47 +136,18 @@ fun DraftsScreen(
                 }
             } else {
                 items(filteredPosts, key = { it.id }) { post ->
-                    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.35f
-                    val postCardContainerColor = MaterialTheme.colorScheme.surface.copy(
-                        alpha = if (isDarkTheme) 0.98f else 0.92f
+                    DraftCard(
+                        draft = post,
+                        timestampFormat = uiState.settings.timestampFormat,
+                        locationLabel = if (post.status == DraftStatus.PUBLISHED) publishedLocationLabel(post) else "Local",
+                        browserUrl = post.postId?.takeIf { post.status == DraftStatus.PUBLISHED && it.startsWith("http") },
+                        onOpen = {
+                            vm.selectDraft(post.id)
+                            onOpenEditor()
+                        },
+                        onOpenBrowser = { url -> uriHandler.openUri(url) },
+                        onDelete = if (post.status == DraftStatus.PUBLISHED) null else ({ vm.deleteDraft(post.id) })
                     )
-                    val postCardBorderColor = MaterialTheme.colorScheme.onSurface.copy(
-                        alpha = if (isDarkTheme) 0.24f else 0.16f
-                    )
-                    if (post.status == DraftStatus.PUBLISHED) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = postCardContainerColor),
-                            border = BorderStroke(0.6.dp, postCardBorderColor),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(post.title.ifBlank { "Untitled post" })
-                                Text("Categories: ${post.categories.joinToString().ifBlank { "(none)" }}")
-                                Text("Label: ${publishedBadgeLabel(post)}")
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    TextButton(onClick = {
-                                        vm.selectDraft(post.id)
-                                        onOpenEditor()
-                                    }) { Text("Open in editor") }
-                                    OutlinedButton(
-                                        onClick = { post.postId?.takeIf { it.startsWith("http") }?.let(uriHandler::openUri) },
-                                        enabled = post.postId?.startsWith("http") == true
-                                    ) { Text("Open in browser") }
-                                }
-                            }
-                        }
-                    } else {
-                        DraftCard(
-                            draft = post,
-                            timestampFormat = uiState.settings.timestampFormat,
-                            onOpen = {
-                                vm.selectDraft(post.id)
-                                onOpenEditor()
-                            },
-                            onDelete = { vm.deleteDraft(post.id) }
-                        )
-                    }
                 }
             }
         }
@@ -189,8 +159,11 @@ fun DraftsScreen(
 private fun DraftCard(
     draft: Draft,
     timestampFormat: TimestampFormat,
+    locationLabel: String,
+    browserUrl: String?,
     onOpen: () -> Unit,
-    onDelete: () -> Unit
+    onOpenBrowser: (String) -> Unit,
+    onDelete: (() -> Unit)?
 ) {
     var menuExpanded by remember(draft.id) { mutableStateOf(false) }
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.35f
@@ -219,7 +192,7 @@ private fun DraftCard(
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         TinyMetadataIcon(Icons.Outlined.Description, tint = metadataColor)
                         Text(
-                            text = "${draftStateSubtitle(draft)} · Local",
+                            text = "${draftStateSubtitle(draft)} · $locationLabel",
                             style = MaterialTheme.typography.labelMedium,
                             color = metadataColor
                         )
@@ -240,25 +213,38 @@ private fun DraftCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Column(modifier = Modifier.wrapContentSize()) {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More actions")
-                    }
-                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Delete") },
-                            onClick = {
-                                menuExpanded = false
-                                onDelete()
+                if (browserUrl != null || onDelete != null) {
+                    Column(modifier = Modifier.wrapContentSize()) {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More actions")
+                        }
+                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            if (browserUrl != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Open in browser") },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onOpenBrowser(browserUrl)
+                                    }
+                                )
                             }
-                        )
+                            if (onDelete != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Delete") },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onDelete()
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
 
             val metadataColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
                     TinyMetadataIcon(Icons.Outlined.AccessTime, tint = metadataColor)
                     Text(
                         text = "Updated ${formatTimestamp(draft.updated, timestampFormat)}",
@@ -320,7 +306,7 @@ private fun draftStateSubtitle(draft: Draft): String = when (draft.status) {
     DraftStatus.PUBLISHED -> "Published"
 }
 
-private fun publishedBadgeLabel(post: Draft): String = if (post.postId.isNullOrBlank()) "Published (No ID)" else "Published"
+private fun publishedLocationLabel(post: Draft): String = if (post.postId.isNullOrBlank()) "No remote ID" else "Remote"
 
 private fun formatTimestamp(instant: Instant, timestampFormat: TimestampFormat): String {
     val zoned = instant.atZone(ZoneId.systemDefault()).withSecond(0).withNano(0)
