@@ -19,3 +19,6 @@ Publishing is done through Micro.blog's Micropub support. Configure your Micropu
 ```bash
 ./gradlew assembleDebug
 ```
+
+---
+✨ Made with vibes ✨
