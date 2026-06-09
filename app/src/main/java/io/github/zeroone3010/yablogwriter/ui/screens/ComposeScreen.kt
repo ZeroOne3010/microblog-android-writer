@@ -78,6 +78,7 @@ import androidx.compose.animation.core.tween
 import kotlinx.coroutines.delay
 import io.github.zeroone3010.yablogwriter.domain.AiReviewPromptType
 import io.github.zeroone3010.yablogwriter.domain.AppUiState
+import io.github.zeroone3010.yablogwriter.domain.DraftStatus
 import io.github.zeroone3010.yablogwriter.domain.SettingsState
 import io.github.zeroone3010.yablogwriter.domain.ImageUploadItem
 import io.github.zeroone3010.yablogwriter.domain.LinkDialogState
@@ -359,7 +360,12 @@ fun ComposeScreen(
                     }
                 }
             }
-            Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated, modifier = Modifier.weight(1f)) { Text("Publish") }
+            val publishButtonLabel = if (uiState.selectedDraft.status == DraftStatus.PUBLISHED && !uiState.selectedDraft.postId.isNullOrBlank()) {
+                "Publish edit"
+            } else {
+                "Publish"
+            }
+            Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated, modifier = Modifier.weight(1f)) { Text(publishButtonLabel) }
         }
         }
 

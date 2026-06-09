@@ -9,15 +9,51 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import java.io.DataOutputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+
+internal sealed interface MicropubPublishRequest {
+    data class Form(val parameters: List<Pair<String, String>>) : MicropubPublishRequest
+    data class Json(val body: String) : MicropubPublishRequest
+}
+
+internal fun buildMicropubPublishRequest(draft: Draft): MicropubPublishRequest =
+    if (draft.postId.isNullOrBlank()) {
+        MicropubPublishRequest.Form(
+            buildList {
+                add("h" to "entry")
+                add("name" to draft.title.ifBlank { "Untitled" })
+                add("content" to draft.body)
+                draft.categories.forEach { add("category[]" to it) }
+            }
+        )
+    } else {
+        MicropubPublishRequest.Json(
+            buildJsonObject {
+                put("action", "update")
+                put("url", draft.postId)
+                putJsonObject("replace") {
+                    putJsonArray("name") { add(draft.title.ifBlank { "Untitled" }) }
+                    putJsonArray("content") { add(draft.body) }
+                    putJsonArray("category") {
+                        draft.categories.forEach { add(it) }
+                    }
+                }
+            }.toString()
+        )
+    }
 
 class MicroblogApi(private val context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
@@ -27,27 +63,14 @@ class MicroblogApi(private val context: Context) {
             require(accessToken.isNotBlank()) { "Micro.blog access token is required" }
 
             val endpoint = "${settings.microblogApiBaseUrl.trimEnd('/')}/micropub"
-            val form = if (draft.postId.isNullOrBlank()) {
-                buildList {
-                    add("h" to "entry")
-                    add("name" to draft.title.ifBlank { "Untitled" })
-                    add("content" to draft.body)
-                    draft.categories.forEach { add("category[]" to it) }
-                }
-            } else {
-                buildList {
-                    add("action" to "update")
-                    add("url" to draft.postId.orEmpty())
-                    add("replace[name]" to draft.title.ifBlank { "Untitled" })
-                    add("replace[content]" to draft.body)
-                    draft.categories.forEach { add("replace[category][]" to it) }
-                }
+            val request = buildMicropubPublishRequest(draft)
+            val response = when (request) {
+                is MicropubPublishRequest.Form -> postFormUrlEncoded(endpoint, accessToken, request.parameters)
+                is MicropubPublishRequest.Json -> postJson(endpoint, accessToken, request.body)
             }
-
-            val response = postFormUrlEncoded(endpoint, accessToken, form)
             val parsed = extractPublishResponse(response.body)
             val permalink = response.location ?: parsed.permalink
-            val postId = parsed.postId ?: draft.postId
+            val postId = permalink ?: parsed.postId ?: draft.postId
             if (postId.isNullOrBlank() && permalink.isNullOrBlank()) {
                 throw IllegalStateException("Publish succeeded but post URL/ID was not returned")
             }
@@ -146,6 +169,20 @@ class MicroblogApi(private val context: Context) {
         }
         connection.outputStream.use { output ->
             output.write(encoded.toByteArray())
+        }
+        return readResponse(connection)
+    }
+
+
+    private fun postJson(endpoint: String, token: String, body: String): HttpResponse {
+        val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            doOutput = true
+            setRequestProperty("Authorization", "Bearer $token")
+            setRequestProperty("Content-Type", "application/json")
+        }
+        connection.outputStream.use { output ->
+            output.write(body.toByteArray())
         }
         return readResponse(connection)
     }

@@ -460,7 +460,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val result = api.publishPost(draft, _uiState.value.settings, _uiState.value.auth.accessToken)
             result.fold(
                 onSuccess = { publishResponse ->
-                    val resolvedPostId = publishResponse.postId ?: publishResponse.permalink ?: draft.postId
+                    val resolvedPostId = publishResponse.permalink ?: publishResponse.postId ?: draft.postId
                     val published = draft.copy(postId = resolvedPostId, status = DraftStatus.PUBLISHED)
                     lastPublishedPostId = resolvedPostId
                     lastPublishedPermalink = publishResponse.permalink
