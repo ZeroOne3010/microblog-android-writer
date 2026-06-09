@@ -124,6 +124,32 @@ fun insertInlineAtSelection(text: String, selectionStart: Int, selectionEnd: Int
     return EditorMutation(newText, cursor)
 }
 
+fun wrapSelectionWithMarkup(
+    text: String,
+    selectionStart: Int,
+    selectionEnd: Int,
+    marker: String,
+    placeholder: String
+): EditorMutation {
+    val safeStart = min(max(selectionStart, 0), text.length)
+    val safeEnd = min(max(selectionEnd, 0), text.length)
+    val selectedRangeStart = min(safeStart, safeEnd)
+    val selectedRangeEnd = max(safeStart, safeEnd)
+    val selected = text.substring(selectedRangeStart, selectedRangeEnd)
+    val content = selected.ifBlank { placeholder }
+    val replacement = "$marker$content$marker"
+    val newText = text.replaceRange(selectedRangeStart, selectedRangeEnd, replacement)
+
+    return if (selected.isBlank()) {
+        val placeholderStart = selectedRangeStart + marker.length
+        val placeholderEnd = placeholderStart + placeholder.length
+        EditorMutation(newText, placeholderStart, placeholderEnd)
+    } else {
+        val cursor = selectedRangeStart + replacement.length
+        EditorMutation(newText, cursor)
+    }
+}
+
 fun wrapInCodeBlock(text: String, selectionStart: Int, selectionEnd: Int): EditorMutation {
     val safeStart = min(max(selectionStart, 0), text.length)
     val safeEnd = min(max(selectionEnd, 0), text.length)

@@ -1,5 +1,8 @@
 package io.github.zeroone3010.yablogwriter.ui.screens
 
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.PickVisualMediaRequest
@@ -20,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.Image
@@ -36,6 +40,8 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
@@ -61,7 +67,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
@@ -93,6 +101,7 @@ import io.github.zeroone3010.yablogwriter.ui.editor.insertWebmentionLinkTemplate
 import io.github.zeroone3010.yablogwriter.ui.editor.prefixSelectedLines
 import io.github.zeroone3010.yablogwriter.ui.editor.removeAllMoreTags
 import io.github.zeroone3010.yablogwriter.ui.editor.wrapInCodeBlock
+import io.github.zeroone3010.yablogwriter.ui.editor.wrapSelectionWithMarkup
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -103,6 +112,7 @@ fun ComposeScreen(
     onFocusModeChange: (Boolean) -> Unit = {}
 ) {
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
     var editorValue by remember(uiState.selectedDraft.id) {
         mutableStateOf(TextFieldValue(uiState.selectedDraft.body, TextRange(uiState.selectedDraft.body.length)))
     }
@@ -349,24 +359,53 @@ fun ComposeScreen(
 
         val aiReviewAvailable = uiState.settings.aiEnabled && uiState.settings.aiApiKey.isNotBlank()
         var showAiDialog by remember { mutableStateOf(false) }
+        var postActionsExpanded by remember { mutableStateOf(false) }
         AnimatedVisibility(visible = !focusModeEnabled, enter = fadeIn(tween(220)), exit = fadeOut(tween(160))) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            if (aiReviewAvailable) {
-                TextButton(onClick = { showAiDialog = true }, enabled = !uiState.aiReviewInProgress, modifier = Modifier.weight(1f)) {
-                    if (uiState.aiReviewInProgress) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text("AI Review")
+                Box {
+                    TextButton(onClick = { postActionsExpanded = true }, modifier = Modifier.size(48.dp)) {
+                        if (uiState.aiReviewInProgress) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Post actions")
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = postActionsExpanded,
+                        onDismissRequest = { postActionsExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("AI review") },
+                            enabled = aiReviewAvailable && !uiState.aiReviewInProgress,
+                            onClick = {
+                                postActionsExpanded = false
+                                showAiDialog = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Share post") },
+                            onClick = {
+                                postActionsExpanded = false
+                                sharePost(context, uiState.selectedDraft.title, uiState.selectedDraft.body)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Copy post") },
+                            onClick = {
+                                postActionsExpanded = false
+                                clipboardManager.setText(AnnotatedString(uiState.selectedDraft.body))
+                                Toast.makeText(context, "Post copied", Toast.LENGTH_SHORT).show()
+                            }
+                        )
                     }
                 }
+                val publishButtonLabel = if (uiState.selectedDraft.status == DraftStatus.PUBLISHED && !uiState.selectedDraft.postId.isNullOrBlank()) {
+                    "Publish edit"
+                } else {
+                    "Publish"
+                }
+                Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated, modifier = Modifier.weight(1f)) { Text(publishButtonLabel) }
             }
-            val publishButtonLabel = if (uiState.selectedDraft.status == DraftStatus.PUBLISHED && !uiState.selectedDraft.postId.isNullOrBlank()) {
-                "Publish edit"
-            } else {
-                "Publish"
-            }
-            Button(onClick = vm::publishPost, enabled = uiState.auth.isAuthenticated, modifier = Modifier.weight(1f)) { Text(publishButtonLabel) }
-        }
         }
 
         if (showAiDialog) {
@@ -424,6 +463,19 @@ fun ComposeScreen(
     }
 }
 
+
+private fun sharePost(context: Context, title: String, body: String) {
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, body)
+        if (title.isNotBlank()) {
+            putExtra(Intent.EXTRA_TITLE, title)
+            putExtra(Intent.EXTRA_SUBJECT, title)
+        }
+    }
+    context.startActivity(Intent.createChooser(shareIntent, "Share post"))
+}
+
 @Composable
 private fun EditorFormattingToolbar(
     editorValue: TextFieldValue,
@@ -448,6 +500,28 @@ private fun EditorFormattingToolbar(
             onEditorValueChange(TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd)))
             vm.editBody(mutation.text)
         }, label = { Text("H2") })
+        SuggestionChip(onClick = {
+            val mutation = wrapSelectionWithMarkup(
+                editorValue.text,
+                editorValue.selection.start,
+                editorValue.selection.end,
+                "**",
+                "bold text"
+            )
+            onEditorValueChange(TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd)))
+            vm.editBody(mutation.text)
+        }, label = { Text("B") })
+        SuggestionChip(onClick = {
+            val mutation = wrapSelectionWithMarkup(
+                editorValue.text,
+                editorValue.selection.start,
+                editorValue.selection.end,
+                "_",
+                "italic text"
+            )
+            onEditorValueChange(TextFieldValue(mutation.text, TextRange(mutation.selectionStart, mutation.selectionEnd)))
+            vm.editBody(mutation.text)
+        }, label = { Text("I") })
         IconButton(onClick = {
             val auto = autoLinkInsertionRequest(editorValue.text, editorValue.selection.start, editorValue.selection.end, clipboardManager.getText()?.text)
             if (auto != null) {

@@ -59,6 +59,24 @@ class MarkdownEditorHelpersTest {
     }
 
     @Test
+    fun `wrapSelectionWithMarkup wraps selected text and places cursor at end`() {
+        val mutation = wrapSelectionWithMarkup("hello world", 6, 11, "**", "bold text")
+
+        assertEquals("hello **world**", mutation.text)
+        assertEquals(mutation.selectionStart, mutation.selectionEnd)
+        assertEquals(mutation.text.length, mutation.selectionStart)
+    }
+
+    @Test
+    fun `wrapSelectionWithMarkup inserts placeholder and selects it when no text is selected`() {
+        val mutation = wrapSelectionWithMarkup("hello ", 6, 6, "_", "italic text")
+
+        assertEquals("hello _italic text_", mutation.text)
+        assertEquals(7, mutation.selectionStart)
+        assertEquals(18, mutation.selectionEnd)
+    }
+
+    @Test
     fun `prefixSelectedLines handles caret at start when text begins with newline`() {
         val mutation = prefixSelectedLines("\nhello", 0, 0, "# ")
 
