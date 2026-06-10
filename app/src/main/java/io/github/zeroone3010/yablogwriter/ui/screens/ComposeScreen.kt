@@ -1,7 +1,10 @@
 package io.github.zeroone3010.yablogwriter.ui.screens
 
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.text.Spanned
+import android.text.style.URLSpan
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
@@ -99,7 +102,9 @@ import io.github.zeroone3010.yablogwriter.ui.editor.insertInlineAtSelection
 import io.github.zeroone3010.yablogwriter.ui.editor.insertLinkTemplate
 import io.github.zeroone3010.yablogwriter.ui.editor.insertWebmentionLinkTemplate
 import io.github.zeroone3010.yablogwriter.ui.editor.prefixSelectedLines
+import io.github.zeroone3010.yablogwriter.ui.editor.markdownFromHtmlClipboard
 import io.github.zeroone3010.yablogwriter.ui.editor.removeAllMoreTags
+import io.github.zeroone3010.yablogwriter.ui.editor.replacePastedPlainTextWithMarkdown
 import io.github.zeroone3010.yablogwriter.ui.editor.wrapInCodeBlock
 import io.github.zeroone3010.yablogwriter.ui.editor.wrapSelectionWithMarkup
 
@@ -252,9 +257,21 @@ fun ComposeScreen(
 
             OutlinedTextField(
                 value = editorValue,
-                onValueChange = {
-                    editorValue = it
-                    vm.editBody(it.text)
+                onValueChange = { newValue ->
+                    val richPaste = richClipboardMarkdown(context)
+                    val pasteMutation = replacePastedPlainTextWithMarkdown(
+                        previousText = editorValue.text,
+                        newText = newValue.text,
+                        clipboardPlainText = richPaste?.plainText,
+                        clipboardMarkdownText = richPaste?.markdownText
+                    )
+                    val resolvedValue = if (pasteMutation != null) {
+                        TextFieldValue(pasteMutation.text, TextRange(pasteMutation.selectionStart, pasteMutation.selectionEnd))
+                    } else {
+                        newValue
+                    }
+                    editorValue = resolvedValue
+                    vm.editBody(resolvedValue.text)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -463,6 +480,49 @@ fun ComposeScreen(
     }
 }
 
+
+private data class RichClipboardMarkdown(
+    val plainText: String,
+    val markdownText: String
+)
+
+private fun richClipboardMarkdown(context: Context): RichClipboardMarkdown? {
+    val systemClipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return null
+    val clip = systemClipboard.primaryClip ?: return null
+    if (clip.itemCount == 0) return null
+
+    val item = clip.getItemAt(0)
+    val plainText = item.text?.toString() ?: item.coerceToText(context)?.toString() ?: return null
+    val styledText = item.text ?: item.coerceToStyledText(context)
+    val markdownText = item.htmlText?.let { markdownFromHtmlClipboard(it, plainText) }
+        ?: (styledText as? Spanned)?.let(::markdownFromUrlSpans)
+        ?: return null
+    return RichClipboardMarkdown(plainText, markdownText)
+}
+
+private fun markdownFromUrlSpans(spanned: Spanned): String? {
+    val plainText = spanned.toString()
+    val markdown = buildString {
+        var cursor = 0
+        spanned.getSpans(0, spanned.length, URLSpan::class.java)
+            .sortedBy { spanned.getSpanStart(it) }
+            .forEach { span ->
+                val start = spanned.getSpanStart(span).coerceIn(0, plainText.length)
+                val end = spanned.getSpanEnd(span).coerceIn(0, plainText.length)
+                if (start < cursor || start >= end) return@forEach
+
+                append(plainText.substring(cursor, start))
+                append("[")
+                append(plainText.substring(start, end).replace("\\", "\\\\").replace("]", "\\]"))
+                append("](")
+                append(span.url.replace(")", "%29"))
+                append(")")
+                cursor = end
+            }
+        append(plainText.substring(cursor))
+    }
+    return markdown.takeIf { it != plainText }
+}
 
 private fun sharePost(context: Context, title: String, body: String) {
     val shareIntent = Intent(Intent.ACTION_SEND).apply {

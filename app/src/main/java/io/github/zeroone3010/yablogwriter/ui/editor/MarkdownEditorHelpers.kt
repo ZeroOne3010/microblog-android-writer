@@ -6,6 +6,126 @@ import kotlin.math.min
 private const val LINK_PLACEHOLDER_TEXT = "link text"
 private const val WEBMENTION_CLASS = "u-in-reply-to"
 
+private val ANCHOR_TAG_REGEX = Regex(
+    """<a\b[^>]*\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>(.*?)</a>""",
+    setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+)
+private val HTML_TAG_REGEX = Regex("""<[^>]+>""")
+private val HTML_BREAK_REGEX = Regex("""</?(?:br|p|div|li|h[1-6])\b[^>]*>""", RegexOption.IGNORE_CASE)
+private val HTML_ENTITY_REGEX = Regex("""&(#x?[0-9a-fA-F]+|[a-zA-Z]+);""")
+
+fun markdownFromHtmlClipboard(htmlText: String?, plainText: String?): String? {
+    val html = htmlText.orEmpty()
+    if (html.isBlank() || !ANCHOR_TAG_REGEX.containsMatchIn(html)) return null
+
+    val markdown = buildString {
+        var cursor = 0
+        ANCHOR_TAG_REGEX.findAll(html).forEach { match ->
+            append(htmlFragmentToPlainText(html.substring(cursor, match.range.first)))
+            val href = decodeHtmlEntities(match.groupValues[1].ifBlank { match.groupValues[2] }).trim()
+            val label = htmlFragmentToPlainText(match.groupValues[3]).trim()
+            if (href.isNotBlank() && !href.startsWith("javascript:", ignoreCase = true) && label.isNotBlank()) {
+                append("[")
+                append(escapeMarkdownLinkLabel(label))
+                append("](")
+                append(escapeMarkdownLinkDestination(href))
+                append(")")
+            } else {
+                append(label)
+            }
+            cursor = match.range.last + 1
+        }
+        append(htmlFragmentToPlainText(html.substring(cursor)))
+    }.trimClipboardWrapperWhitespace(plainText)
+
+    return markdown.takeIf { it.isNotBlank() && it != plainText }
+}
+
+fun replacePastedPlainTextWithMarkdown(
+    previousText: String,
+    newText: String,
+    clipboardPlainText: String?,
+    clipboardMarkdownText: String?
+): EditorMutation? {
+    val plain = clipboardPlainText ?: return null
+    val markdown = clipboardMarkdownText ?: return null
+    if (plain.isEmpty() || markdown == plain || previousText == newText) return null
+
+    val commonPrefix = previousText.commonPrefixLength(newText)
+    val maxSuffix = min(previousText.length - commonPrefix, newText.length - commonPrefix)
+    val commonSuffix = previousText.commonSuffixLength(newText, maxSuffix)
+    val insertedStart = commonPrefix
+    val insertedEnd = newText.length - commonSuffix
+    if (insertedStart > insertedEnd) return null
+
+    val inserted = newText.substring(insertedStart, insertedEnd)
+    if (!inserted.clipboardEquivalent(plain)) return null
+
+    val updated = newText.replaceRange(insertedStart, insertedEnd, markdown)
+    val cursor = insertedStart + markdown.length
+    return EditorMutation(updated, cursor)
+}
+
+private fun String.trimClipboardWrapperWhitespace(plainText: String?): String {
+    val plain = plainText.orEmpty()
+    val leading = plain.takeWhile { it.isWhitespace() }
+    val trailing = plain.takeLastWhile { it.isWhitespace() }
+    return trim().let { "$leading$it$trailing" }
+}
+
+private fun htmlFragmentToPlainText(fragment: String): String = decodeHtmlEntities(
+    fragment
+        .replace(HTML_BREAK_REGEX, "\n")
+        .replace(HTML_TAG_REGEX, "")
+).collapseExcessBlankLines()
+
+private fun String.collapseExcessBlankLines(): String = replace(Regex("\\n{3,}"), "\n\n")
+
+private fun escapeMarkdownLinkLabel(label: String): String = label
+    .replace("\\", "\\\\")
+    .replace("]", "\\]")
+
+private fun escapeMarkdownLinkDestination(destination: String): String = destination.replace(")", "%29")
+
+private fun String.clipboardEquivalent(other: String): Boolean = this == other || normalizeClipboardLineEndings() == other.normalizeClipboardLineEndings()
+
+private fun String.normalizeClipboardLineEndings(): String = replace("\r\n", "\n").replace("\r", "\n")
+
+private fun String.commonPrefixLength(other: String): Int {
+    val limit = min(length, other.length)
+    var index = 0
+    while (index < limit && this[index] == other[index]) index++
+    return index
+}
+
+private fun String.commonSuffixLength(other: String, maxLength: Int): Int {
+    var count = 0
+    while (count < maxLength && this[length - 1 - count] == other[other.length - 1 - count]) count++
+    return count
+}
+
+private fun decodeHtmlEntities(value: String): String = HTML_ENTITY_REGEX.replace(value) { match ->
+    when (val entity = match.groupValues[1]) {
+        "amp" -> "&"
+        "lt" -> "<"
+        "gt" -> ">"
+        "quot" -> "\""
+        "apos", "#39" -> "'"
+        "nbsp" -> " "
+        else -> decodeNumericHtmlEntity(entity) ?: match.value
+    }
+}
+
+private fun decodeNumericHtmlEntity(entity: String): String? {
+    if (!entity.startsWith("#")) return null
+    val codePoint = if (entity.startsWith("#x", ignoreCase = true)) {
+        entity.drop(2).toIntOrNull(16)
+    } else {
+        entity.drop(1).toIntOrNull()
+    } ?: return null
+    return runCatching { String(Character.toChars(codePoint)) }.getOrNull()
+}
+
 enum class LinkFormat { MARKDOWN, WEBMENTION }
 
 data class EditorMutation(
