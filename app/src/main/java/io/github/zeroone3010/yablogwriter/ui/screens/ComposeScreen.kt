@@ -57,11 +57,13 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -71,6 +73,18 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalTextToolbar
+import androidx.compose.ui.platform.TextToolbar
+import androidx.compose.ui.platform.TextToolbarStatus
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
@@ -151,6 +165,8 @@ fun ComposeScreen(
     var contentTopInWindow by remember { mutableStateOf(0f) }
     var focusModeEnabled by remember { mutableStateOf(false) }
     var focusEditorExpanded by remember { mutableStateOf(false) }
+    var richPasteArmed by remember { mutableStateOf(false) }
+    val richPasteTextToolbar = rememberRichPasteTextToolbar { richPasteArmed = true }
 
     LaunchedEffect(focusModeEnabled) {
         onFocusModeChange(focusModeEnabled)
@@ -255,31 +271,40 @@ fun ComposeScreen(
                 }
             }
 
-            OutlinedTextField(
-                value = editorValue,
-                onValueChange = { newValue ->
-                    val richPaste = richClipboardMarkdown(context)
-                    val pasteMutation = replacePastedPlainTextWithMarkdown(
-                        previousText = editorValue.text,
-                        newText = newValue.text,
-                        clipboardPlainText = richPaste?.plainText,
-                        clipboardMarkdownText = richPaste?.markdownText
-                    )
-                    val resolvedValue = if (pasteMutation != null) {
-                        TextFieldValue(pasteMutation.text, TextRange(pasteMutation.selectionStart, pasteMutation.selectionEnd))
-                    } else {
-                        newValue
-                    }
-                    editorValue = resolvedValue
-                    vm.editBody(resolvedValue.text)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(if (focusEditorExpanded) Modifier.height(0.dp).weight(1f) else Modifier)
-                    .animateContentSize(animationSpec = tween(100)),
-                minLines = 12,
-                label = { Text(if (focusModeEnabled) uiState.selectedDraft.title.ifBlank { "Untitled draft" } else "Markdown") }
-            )
+            CompositionLocalProvider(LocalTextToolbar provides richPasteTextToolbar) {
+                OutlinedTextField(
+                    value = editorValue,
+                    onValueChange = { newValue ->
+                        val shouldApplyRichPaste = richPasteArmed
+                        richPasteArmed = false
+                        val richPaste = if (shouldApplyRichPaste) richClipboardMarkdown(context) else null
+                        val pasteMutation = replacePastedPlainTextWithMarkdown(
+                            previousText = editorValue.text,
+                            newText = newValue.text,
+                            clipboardPlainText = richPaste?.plainText,
+                            clipboardMarkdownText = richPaste?.markdownText,
+                            isPasteAction = shouldApplyRichPaste
+                        )
+                        val resolvedValue = if (pasteMutation != null) {
+                            TextFieldValue(pasteMutation.text, TextRange(pasteMutation.selectionStart, pasteMutation.selectionEnd))
+                        } else {
+                            newValue
+                        }
+                        editorValue = resolvedValue
+                        vm.editBody(resolvedValue.text)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (focusEditorExpanded) Modifier.height(0.dp).weight(1f) else Modifier)
+                        .onPreviewKeyEvent { event ->
+                            if (event.isPasteShortcut()) richPasteArmed = true
+                            false
+                        }
+                        .animateContentSize(animationSpec = tween(100)),
+                    minLines = 12,
+                    label = { Text(if (focusModeEnabled) uiState.selectedDraft.title.ifBlank { "Untitled draft" } else "Markdown") }
+                )
+            }
         }
 
         LinkInsertionDialog(
@@ -480,6 +505,46 @@ fun ComposeScreen(
     }
 }
 
+
+@Composable
+private fun rememberRichPasteTextToolbar(onPasteRequested: () -> Unit): TextToolbar {
+    val delegate = LocalTextToolbar.current
+    val currentOnPasteRequested by rememberUpdatedState(onPasteRequested)
+    return remember(delegate) {
+        object : TextToolbar {
+            override val status: TextToolbarStatus
+                get() = delegate.status
+
+            override fun showMenu(
+                rect: Rect,
+                onCopyRequested: (() -> Unit)?,
+                onPasteRequested: (() -> Unit)?,
+                onCutRequested: (() -> Unit)?,
+                onSelectAllRequested: (() -> Unit)?
+            ) {
+                delegate.showMenu(
+                    rect = rect,
+                    onCopyRequested = onCopyRequested,
+                    onPasteRequested = onPasteRequested?.let { paste ->
+                        {
+                            currentOnPasteRequested()
+                            paste()
+                        }
+                    },
+                    onCutRequested = onCutRequested,
+                    onSelectAllRequested = onSelectAllRequested
+                )
+            }
+
+            override fun hide() {
+                delegate.hide()
+            }
+        }
+    }
+}
+
+private fun KeyEvent.isPasteShortcut(): Boolean =
+    type == KeyEventType.KeyDown && ((isCtrlPressed && key == Key.V) || (isShiftPressed && key == Key.Insert))
 
 private data class RichClipboardMarkdown(
     val plainText: String,

@@ -85,11 +85,26 @@ class MarkdownEditorHelpersTest {
             previousText = "Before  after",
             newText = "Before Example after",
             clipboardPlainText = "Example",
-            clipboardMarkdownText = "[Example](https://example.com)"
+            clipboardMarkdownText = "[Example](https://example.com)",
+            isPasteAction = true
         )
 
         assertEquals("Before [Example](https://example.com) after", mutation?.text)
         assertEquals("Before [Example](https://example.com)".length, mutation?.selectionStart)
+    }
+
+
+    @Test
+    fun `replacePastedPlainTextWithMarkdown ignores matching edits unless paste is armed`() {
+        val mutation = replacePastedPlainTextWithMarkdown(
+            previousText = "Before  after",
+            newText = "Before Example after",
+            clipboardPlainText = "Example",
+            clipboardMarkdownText = "[Example](https://example.com)",
+            isPasteAction = false
+        )
+
+        assertEquals(null, mutation)
     }
 
     @Test

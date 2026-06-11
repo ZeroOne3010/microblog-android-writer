@@ -45,8 +45,10 @@ fun replacePastedPlainTextWithMarkdown(
     previousText: String,
     newText: String,
     clipboardPlainText: String?,
-    clipboardMarkdownText: String?
+    clipboardMarkdownText: String?,
+    isPasteAction: Boolean
 ): EditorMutation? {
+    if (!isPasteAction) return null
     val plain = clipboardPlainText ?: return null
     val markdown = clipboardMarkdownText ?: return null
     if (plain.isEmpty() || markdown == plain || previousText == newText) return null
